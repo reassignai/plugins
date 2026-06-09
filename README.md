@@ -14,7 +14,6 @@ forms, all backed by one canonical skill and the Reassign MCP.
 | **Claude Code plugin** | `/plugin marketplace add reassignai/plugins` → `/plugin install reassign@reassign` |
 | **Standalone skill** | `npx skills add reassignai/plugins` |
 | **Claude.ai / ChatGPT connector** | Add a custom connector pointing at `https://reassign.app/api/mcp` |
-| **Cursor / VS Code** | One-click install buttons at [reassign.ai](https://reassign.ai) |
 | **npm (any stdio MCP client)** | `npx -y @reassign/mcp` |
 
 ## What's inside
@@ -36,9 +35,10 @@ plugins/                                  ← repo root = plugin root
 ├── package.json                          ← npm client shim
 ├── bin/reassign-mcp.js
 ├── scripts/
-│   ├── build.sh
-│   └── gen-deeplinks.js
-├── .github/workflows/publish-registry.yml
+│   └── build.sh
+├── .github/workflows/
+│   ├── publish-registry.yml
+│   └── publish-npm.yml
 ├── README.md
 └── LICENSE
 ```
