@@ -1,0 +1,48 @@
+name: Publish to MCP Registry
+
+# Publishes server.json to the Official MCP Registry on every v* tag.
+# The registry is in preview and can reset, so we publish on every tag
+# rather than once. Namespace app.reassign/reassign is DNS-based (reverse
+# of reassign.app), so we authenticate with DNS (ed25519), not GitHub OIDC
+# (OIDC only mints io.github.* namespaces).
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        env:
+          # Pin the version (not `latest`) so a moving/compromised release can't
+          # run with the MCP_REGISTRY_DNS_KEY secret in scope. Bump deliberately.
+          MCP_PUBLISHER_VERSION: v1.7.9
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.tar.gz" \
+            | tar -xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+
+      - name: Verify server.json version matches tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./server.json').version")"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::tag v$tag does not match server.json version $ver"
+            exit 1
+          fi
+
+      - name: Authenticate (DNS)
+        env:
+          MCP_REGISTRY_DNS_KEY: ${{ secrets.MCP_REGISTRY_DNS_KEY }}
+        run: |
+          mcp-publisher login dns \
+            --domain reassign.app \
+            --private-key "$MCP_REGISTRY_DNS_KEY"
+
+      - name: Publish
+        run: mcp-publisher publish --file ./server.json

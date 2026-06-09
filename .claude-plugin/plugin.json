@@ -1,0 +1,10 @@
+{
+  "name": "reassign",
+  "version": "1.0.0",
+  "description": "Plan and review your day on Reassign's circular 24-hour calendar, with ADHD-friendly scheduling methods. Bundles the Reassign scheduling skill and connects to the Reassign MCP.",
+  "author": { "name": "Pogled Naprej d.o.o.", "url": "https://reassign.ai" },
+  "homepage": "https://reassign.ai",
+  "repository": "https://github.com/reassignai/plugins",
+  "license": "Apache-2.0",
+  "keywords": ["calendar", "scheduling", "time-tracking", "productivity", "adhd", "mcp"]
+}

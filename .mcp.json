@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "reassign": { "type": "http", "url": "https://reassign.app/api/mcp" }
+  }
+}

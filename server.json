@@ -1,0 +1,10 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "app.reassign/reassign",
+  "description": "Reassign — circular 24-hour calendar & time-tracking copilot with ADHD-friendly scheduling.",
+  "version": "1.0.0",
+  "status": "active",
+  "repository": { "url": "https://github.com/reassignai/plugins", "source": "github" },
+  "websiteUrl": "https://reassign.ai",
+  "remotes": [ { "type": "streamable-http", "url": "https://reassign.app/api/mcp" } ]
+}
