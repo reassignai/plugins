@@ -8,7 +8,7 @@
   "files": ["bin"],
   "engines": { "node": ">=18" },
   "homepage": "https://reassign.ai",
-  "repository": { "type": "git", "url": "https://github.com/reassignai/plugins.git" },
+  "repository": { "type": "git", "url": "git+https://github.com/reassignai/plugins.git" },
   "license": "Apache-2.0",
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "claude", "claude-code", "anthropic", "agent-skill", "calendar", "scheduling", "time-tracking", "productivity", "adhd"]
 }
