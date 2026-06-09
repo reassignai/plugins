@@ -1,0 +1,48 @@
+name: Publish to npm
+
+# Publishes the @reassign/mcp client shim to npm on every v* tag, in lockstep
+# with the MCP registry publish. Separate workflow so an npm hiccup never blocks
+# the registry publish (and vice versa).
+#
+# Auth — pick ONE:
+#   A) Token (this file as written): create an npm "Automation" access token at
+#      npmjs.com → Access Tokens, then add it as repo secret NPM_TOKEN.
+#   B) Trusted publishing (no stored secret, recommended): configure a trusted
+#      publisher for @reassign/mcp on npmjs.com pointing at this repo + workflow,
+#      then DELETE the NODE_AUTH_TOKEN env line below — npm authenticates via the
+#      OIDC id-token automatically. Requires the package to already exist or the
+#      publisher pre-configured.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance attestation
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify package.json version matches tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::tag v$tag does not match package.json version $ver"
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
