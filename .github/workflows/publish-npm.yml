@@ -4,14 +4,12 @@ name: Publish to npm
 # with the MCP registry publish. Separate workflow so an npm hiccup never blocks
 # the registry publish (and vice versa).
 #
-# Auth — pick ONE:
-#   A) Token (this file as written): create an npm "Automation" access token at
-#      npmjs.com → Access Tokens, then add it as repo secret NPM_TOKEN.
-#   B) Trusted publishing (no stored secret, recommended): configure a trusted
-#      publisher for @reassign/mcp on npmjs.com pointing at this repo + workflow,
-#      then DELETE the NODE_AUTH_TOKEN env line below — npm authenticates via the
-#      OIDC id-token automatically. Requires the package to already exist or the
-#      publisher pre-configured.
+# Auth: npm trusted publishing (OIDC) — NO stored token. Requires a one-time
+# setup on npmjs.com → the @reassign/mcp package → Settings → Trusted Publisher:
+#   GitHub org: reassignai · repository: plugins · workflow: publish-npm.yml
+# npm must already host the package (publish 1.0.0 once locally first), and the
+# CLI must be >= 11.5.1 for OIDC, hence the `npm install -g npm@latest` step.
+# Provenance is generated automatically under trusted publishing.
 on:
   push:
     tags:
@@ -30,8 +28,11 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm for trusted publishing (OIDC needs >= 11.5.1)
+        run: npm install -g npm@latest
 
       - name: Verify package.json version matches tag
         run: |
@@ -43,6 +44,4 @@ jobs:
           fi
 
       - name: Publish
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
