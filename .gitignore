@@ -1,5 +1,5 @@
-# Working build spec (local only — not part of the shipped repo)
-/docs/build-plan.md
+# Working/handoff docs (local only — not part of the shipped repo)
+/docs/
 
 # Build output
 /dist/

@@ -1,0 +1,47 @@
+name: Publish to npm
+
+# Publishes the @reassign/mcp client shim to npm on every v* tag, in lockstep
+# with the MCP registry publish. Separate workflow so an npm hiccup never blocks
+# the registry publish (and vice versa).
+#
+# Auth: npm trusted publishing (OIDC) — NO stored token. Requires a one-time
+# setup on npmjs.com → the @reassign/mcp package → Settings → Trusted Publisher:
+#   GitHub org: reassignai · repository: plugins · workflow: publish-npm.yml
+# npm must already host the package (publish 1.0.0 once locally first), and the
+# CLI must be >= 11.5.1 for OIDC, hence the `npm install -g npm@latest` step.
+# Provenance is generated automatically under trusted publishing.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance attestation
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm for trusted publishing (OIDC needs >= 11.5.1)
+        run: npm install -g npm@latest
+
+      - name: Verify package.json version matches tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::tag v$tag does not match package.json version $ver"
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --access public
