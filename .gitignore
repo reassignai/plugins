@@ -7,6 +7,9 @@
 # Dependencies
 /node_modules/
 
+# Local agent state (plans, settings) — never shipped
+/.claude/
+
 # OS / editor cruft
 .DS_Store
 *.log
