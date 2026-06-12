@@ -1,7 +1,10 @@
 # Areas and activity types
 
-The dial has two orthogonal classification axes. Get them right and the day reads
-at a glance; get them wrong and every block looks the same.
+The dial has two orthogonal classification axes for *what* an event is — plus a
+third, an event's **`kind`** (blocking / non-blocking / reference), for whether
+it occupies time. Kind is covered in references/calendars.md §Event kinds; this
+doc is the colour + texture axes. Get all three right and the day reads at a
+glance; get them wrong and every block looks the same.
 
 - **Areas** = colour-coded categories / groups (work, health, family, errands).
   Each area has a name (≤60 chars) and a 6-digit hex **color**. An event belongs

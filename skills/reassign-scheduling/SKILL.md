@@ -6,12 +6,15 @@ description: >-
   plan their day or week, reshuffle, review where time went, protect focus, or
   work on ADHD-friendly time management — and also whenever they mention
   calendars, time blocking, deep work, pomodoros, body doubling, "eat the
-  frog," or say they feel overwhelmed, scattered, or behind. Always call
-  get_schedule before proposing or changing any times.
+  frog," or say they feel overwhelmed, scattered, or behind. Use it too when
+  they connect, sync, or mirror a calendar (Google Calendar), ask why an
+  imported event blocks or doesn't, or want a non-blocking band (sleep, fasting)
+  or a see-only reference event (a partner's calendar, a kid's training). Always
+  call get_schedule before proposing or changing any times.
 license: Apache-2.0
 allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__send_feedback
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -34,6 +37,50 @@ advice you recite.
   window via `mcp__reassign__undo`.
 - Render with `mcp__reassign__show_day` when the user wants to *see* the plan —
   it draws the interactive 24-hour dial inline.
+- Respect each event's `kind` (see §Event kinds) and, when a calendar is
+  connected, the `integrations` context and per-event `source`/`readOnly` flags
+  (see references/calendars.md). Never edit or delete a `readOnly` event.
+
+## Event kinds
+
+Every event has a `kind`. `get_schedule` omits it for a normal **blocking**
+event and emits it otherwise; set it via `kind` on `write_events` create/update.
+
+- **blocking** (default) — occupies time, cannot overlap; counts in
+  `loadByArea`/`loadByActivityType` and consumes free slots.
+- **non-blocking** — an overlay band (sleep, fasting, commute) that may overlap
+  anything and never conflicts. It does *not* consume free slots; its minutes
+  surface separately as `nonBlockingLoadByArea`/`nonBlockingLoadByActivityType`.
+  Use it when the user wants something present on the dial without it blocking
+  scheduling.
+- **reference** — see-only (a memo): something the user wants to *view* but
+  isn't doing — a kid's training they drop off at, an event mirrored from a
+  partner's calendar. Its hours stay free for scheduling. Don't move, delete, or
+  schedule work *into* it unless explicitly asked.
+
+When choosing a kind, ask whether the user is *doing* the thing (blocking),
+*living through* it as a backdrop (non-blocking), or just *watching* it
+(reference). Don't make everything blocking.
+
+## Calendar sync
+
+When the user has connected a calendar (e.g. Google), `get_schedule` returns an
+`integrations` block and events carry sync fields. The essentials:
+
+- An event's `source` is `"reassign"` (native) or the provider (`"google"`); a
+  calendar-linked event also carries its `calendar` name. An event with
+  `readOnly: true` is from a calendar the user doesn't own — **never edit or
+  delete it**; the change would silently revert.
+- Editing or creating a calendar-linked event (or any event under the user's
+  default sync calendar) through `write_events`/`schedule`, and deleting one
+  through `delete_events`, **propagates to Google automatically** — exactly like
+  editing on the dial. You don't call a separate sync tool.
+- `integrations` carries connected `sources` (provider/account/status +
+  `calendars`), the account-wide AI classifier (`aiClassify`/`aiContext`) and
+  the `defaultSyncCalendarId` new events sync to; per calendar it carries the
+  `defaultKind`/`defaultArea`/`defaultType`/`instructions` fallbacks. Use it to
+  explain *why* an event imported as non-blocking, or *where* a new event will
+  sync — see references/calendars.md for the full surface and `syncTo`.
 
 ## Workflow: schedule a block
 
@@ -75,6 +122,10 @@ advice you recite.
 - Add or rename areas and activity types via `mcp__reassign__manage_categories`
   — create the area first, then reference its id in `write_events`.
 - Locate an event without an id via `mcp__reassign__find_event`.
+- Set `kind` on a create/update to make an event non-blocking or reference
+  (§Event kinds). For wide read ranges pass `compact:true`; for recurring
+  masters (rule/anchor/next occurrence) pass `includeSeries:true` →
+  get_schedule returns a `series` array.
 
 ## What not to do
 
@@ -88,8 +139,9 @@ advice you recite.
 
 Apply references/adhd-methods.md as ACTIONS on the dial, not advice you recite.
 Start with implementation intentions and externalized time. See
-references/workflows.md for extended multi-step scenarios and
-references/taxonomy.md for how areas and activity types map to the dial.
+references/workflows.md for extended multi-step scenarios,
+references/taxonomy.md for how areas and activity types map to the dial, and
+references/calendars.md for connected-calendar sync, event kinds, and mirroring.
 
 ## Feedback
 

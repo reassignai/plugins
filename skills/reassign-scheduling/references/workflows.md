@@ -65,3 +65,33 @@ surface it.
    `timeOfDay`). If it returns `ambiguous`, present the candidates and let the
    user pick rather than guessing.
 2. Apply the change with `write_events` using the resolved id.
+
+## Working a connected calendar (sync)
+
+See references/calendars.md for the full surface. The flow:
+
+1. `get_schedule` — if `integrations` is present, a calendar (e.g. Google) is
+   connected. Read `sources[].status`, `defaultSyncCalendarId`, and each event's
+   `source`/`calendar`/`readOnly` before touching anything.
+2. Editing/creating an owned linked event (or one under the default sync
+   calendar) via `write_events`/`schedule`, or deleting via `delete_events`,
+   **propagates to the provider automatically** — no separate sync step. Surface
+   the `undoToken` as usual.
+3. **Never** edit, move, or delete a `readOnly` event (a calendar the user
+   doesn't own — including a mirrored copy); the change reverts. Surface it as
+   context only.
+4. To explain an imported event's classification, point at the calendar's
+   `defaultKind`/`defaultArea`/`defaultType`/`instructions` or the account
+   `aiClassify`/`aiContext` in `integrations`. Don't set `syncTo` yourself —
+   it's the dial picker's job (calendars.md §syncTo).
+
+## Reference & non-blocking events
+
+1. The user wants something *visible but not blocking* — a partner's event they
+   need to see (use `kind: "reference"`), or a backdrop like sleep/fasting/commute
+   (`kind: "non-blocking"`). See references/calendars.md §Event kinds.
+2. Create it with `write_events` `create` plus `kind`. A reference event keeps
+   its hours free; a non-blocking band may overlap real work without conflict.
+3. When scheduling work, treat both as free time — but don't schedule *into* a
+   reference event unless the user asks, and respect a non-blocking band's intent
+   (e.g. don't pile deep work over a "sleep" overlay just because it's allowed).
