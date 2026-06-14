@@ -1,7 +1,7 @@
 {
   "name": "@reassign/mcp",
   "version": "1.0.1",
-  "description": "Client shim for the Reassign MCP — a circular 24-hour calendar and time-tracking copilot.",
+  "description": "Client shim for the Reassign MCP, a circular 24-hour calendar and time-tracking copilot.",
   "type": "module",
   "bin": { "reassign-mcp": "bin/reassign-mcp.js" },
   "mcpName": "app.reassign/reassign",
