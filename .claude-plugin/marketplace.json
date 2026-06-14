@@ -2,7 +2,7 @@
   "name": "reassign",
   "owner": { "name": "Pogled Naprej d.o.o.", "url": "https://reassign.ai" },
   "metadata": {
-    "description": "Reassign — circular 24-hour calendar for focus and ADHD-friendly time management.",
+    "description": "Reassign: a circular 24-hour calendar for focus and ADHD-friendly time management.",
     "version": "1.1.0"
   },
   "plugins": [

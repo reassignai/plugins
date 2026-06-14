@@ -1,9 +1,9 @@
 # Reassign
 
-**Reassign — circular 24-hour day planner. One capability, five package forms, one canonical skill.**
+**Reassign: a circular 24-hour day planner. One capability, five package forms, one canonical skill.**
 
-Reassign plans, edits, and reviews your day on a circular 24-hour calendar, with
-ADHD-friendly time-management methods applied as concrete edits to the dial — not
+Reassign plans, edits, and reviews your day on a circular 24-hour calendar. It
+applies ADHD-friendly time-management methods as concrete edits to the dial, not
 advice recited back at you. The same scheduling capability ships in several package
 forms, all backed by one canonical skill and the Reassign MCP.
 
