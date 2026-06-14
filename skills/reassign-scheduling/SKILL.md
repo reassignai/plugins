@@ -14,7 +14,7 @@ description: >-
 license: Apache-2.0
 allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__send_feedback
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -85,13 +85,22 @@ When the user has connected a calendar (e.g. Google), `get_schedule` returns an
 ## Workflow: schedule a block
 
 1. `mcp__reassign__get_schedule` (no args = today) to anchor `now` and load.
-2. Relative or natural-language time ("tomorrow 3pm", "after lunch")? Prefer
-   `mcp__reassign__schedule` with `requests[]` = `{name, duration, when}`
-   (duration like `"90m"` or `"1h30"`). One clean fit → created with an
-   `undoToken`; conflicts → ranked `options` plus a `commitToken`.
+2. Resolve any relative phrasing yourself ("tomorrow", "after lunch") into
+   structured fields, then call `mcp__reassign__schedule` with `requests[]` =
+   `{name, duration, date, ...}`: `date` is ISO `"YYYY-MM-DD"`; `duration` like
+   `"90m"` or `"1h30"`. Add an exact `start` (`"HH:MM"`, 24-hour) to place there,
+   or an `earliest`/`latest` (`"HH:MM"`) window to search within ("afternoon" →
+   `earliest "13:00"`, `latest "18:00"`), or none of them to search the whole
+   working day. The tool does no date parsing — you supply a concrete `date` and
+   24-hour times. Attach an area/type with `areaId`/`activityTypeId` (or
+   `areaName`/`activityTypeName`), add `notes`, make it repeat with `recurrence`,
+   and pass a stable `request_id` so a retry doesn't double-book. One clean fit →
+   created with an `undoToken`; conflicts → ranked `options` plus a `commitToken`.
 3. Present 2–3 options, then `mcp__reassign__confirm_schedule` with `items[]` =
    `{token, choice}` (0-based; omit `choice` for the best fit). It re-checks
-   conflicts before committing.
+   conflicts before committing. When the user is looking at their dial, pass
+   `render:true` on `schedule`/`confirm_schedule` to repaint it in the same call
+   instead of a separate `show_day`.
 4. ADHD default: add a transition buffer before deep work and after meetings
    (references/adhd-methods.md §buffers); inflate vague estimates 25–50%.
 5. Surface the `undoToken`.
@@ -116,9 +125,11 @@ When the user has connected a calendar (e.g. Google), `get_schedule` returns an
 - Batch create/update/move/shift via `mcp__reassign__write_events` (`ops`, ≤50,
   atomic by default — pass `partial:true` to allow per-op failures). Reference
   areas/types by id, or by `areaName`/`activityTypeName`. For recurring events
-  set `scope` to `all`/`future`/`this`.
+  set `scope` to `all`/`future`/`this` — `future`/`this` also need an
+  `occurrenceDate`. Pass `render:true` to repaint an open dial in the same call.
 - Remove events or clear a day/range via `mcp__reassign__delete_events`
-  (reversible → `undoToken`).
+  (`ops` = `delete`|`clear`; reversible → `undoToken`; same `scope`/`partial`/
+  `render` flags as `write_events`).
 - Add or rename areas and activity types via `mcp__reassign__manage_categories`
   — create the area first, then reference its id in `write_events`.
 - Locate an event without an id via `mcp__reassign__find_event`.
