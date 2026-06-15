@@ -9,12 +9,14 @@ description: >-
   frog," or say they feel overwhelmed, scattered, or behind. Use it too when
   they connect, sync, or mirror a calendar (Google Calendar), ask why an
   imported event blocks or doesn't, or want a non-blocking band (sleep, fasting)
-  or a see-only reference event (a partner's calendar, a kid's training). Always
-  call get_schedule before proposing or changing any times.
+  or a see-only reference event (a partner's calendar, a kid's training). Use it
+  too when they ask about the weather around a plan — whether to schedule a run,
+  commute, or other outdoor block around rain or daylight. Always call
+  get_schedule before proposing or changing any times.
 license: Apache-2.0
-allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__send_feedback
+allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__get_weather mcp__reassign__send_feedback
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -81,6 +83,42 @@ When the user has connected a calendar (e.g. Google), `get_schedule` returns an
   `defaultKind`/`defaultArea`/`defaultType`/`instructions` fallbacks. Use it to
   explain *why* an event imported as non-blocking, or *where* a new event will
   sync — see references/calendars.md for the full surface and `syncTo`.
+
+## Weather
+
+When the user has a city (saved, or guessed from their timezone), `get_schedule`
+and `show_day` include a one-line `weather` headline for a single requested day
+or today — temp range, condition, rain window, sunset. That's enough to schedule
+around; read it before placing outdoor or weather-sensitive work. The headline is
+omitted for a pure multi-day range (one line can't represent it) and for a
+city-less user.
+
+- Reach for `mcp__reassign__get_weather` only when an outdoor or weather-
+  sensitive plan needs the hourly detail (a run, commute, picnic, gardening — the
+  exact dry/daylight window), or when the user explicitly asks about the weather.
+  It returns a compact day overview plus a part-of-day breakdown, not an hourly
+  dump. Indoor plans don't need it — the headline already covers a quick glance.
+- It defaults to today and the user's city. Pass `date` (ISO `YYYY-MM-DD`) for
+  another day, or `location` (a city/place name) to ask about somewhere else —
+  `location` wins over the saved city, so "weather in London?" works regardless.
+- Use it to bias placement: steer a run into a dry, daylight window; flag when an
+  outdoor block lands in forecast rain and offer to move it. It's read-only and
+  never changes the plan on its own.
+
+### Planning with weather
+
+Use the forecast to place work, not to moralize about it:
+
+- **Outdoor / exposed blocks** (run, commute, errands, sports, a walk meeting)
+  → the dry, daylight window. If one already sits in forecast rain, flag it and
+  offer a move. This is logistics — be concrete, not preachy.
+- **Daylight is a resource, not just a constraint.** A morning outdoor block in
+  the daylight window doubles as a circadian/energy anchor — pair it with the
+  user's peak window (see references/adhd-methods.md §Chronotype / energy
+  placement) rather than treating sunrise/sunset as trivia.
+- **Don't invent weather-mood rules.** There's no reliable "do deep work when
+  it's raining" theory — the effect is tiny and personal. Only act on a pattern
+  the *user* has stated ("gray days help me focus"); never prescribe one.
 
 ## Workflow: schedule a block
 
