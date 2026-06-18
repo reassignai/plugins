@@ -11,12 +11,14 @@ description: >-
   imported event blocks or doesn't, or want a non-blocking band (sleep, fasting)
   or a see-only reference event (a partner's calendar, a kid's training). Use it
   too when they ask about the weather around a plan — whether to schedule a run,
-  commute, or other outdoor block around rain or daylight. Always call
-  get_schedule before proposing or changing any times.
+  commute, or other outdoor block around rain or daylight. Use it as well when
+  they look back on a past day or week — how it actually went, what they kept,
+  skipped, or changed, how closely they hit the plan — and want to record that
+  reflection. Always call get_schedule before proposing or changing any times.
 license: Apache-2.0
-allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__get_weather mcp__reassign__send_feedback
+allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__send_feedback
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -83,6 +85,35 @@ When the user has connected a calendar (e.g. Google), `get_schedule` returns an
   `defaultKind`/`defaultArea`/`defaultType`/`instructions` fallbacks. Use it to
   explain *why* an event imported as non-blocking, or *where* a new event will
   sync — see references/calendars.md for the full surface and `syncTo`.
+
+## Reflection (how a past day went)
+
+A **past** day can be reflected: marking each event with what actually happened,
+then freezing a per-day adherence snapshot. The surface (see
+references/reflection.md for the full detail):
+
+- **Read.** For a day already reviewed, `get_schedule` returns a per-day
+  `review` block (`reviewed`, `reviewedAt`, `adherence` — how closely actuals
+  matched the plan, with per-area/type breakdowns) and, on each touched event, a
+  `reflect` block (`state` + the recorded `actualStart`/`actualEnd`). `show_day`
+  adds a one-line adherence gloss. An unreviewed day carries neither.
+- **Mark.** Record how each event went with `write_events`' `reflect` op:
+  `{op:"reflect", id, status}` where `status` is `kept` (happened as planned),
+  `skipped` (didn't happen), `changed` (happened differently — pass
+  `actualStart`/`actualEnd`, plus `actualEndNextDay:true` if it crossed
+  midnight), or `added` (unplanned but happened — its `actualStart`/`actualEnd`
+  become its time). A mark on a planned event only sets its reflect status +
+  actual time; you cannot rename/re-area it through a reflect op (that would game
+  adherence). Marks ride the same atomic, undoable batch as other ops.
+- **Freeze / reset.** After marking, call `mcp__reassign__review_day` with
+  `{date, action:"confirm"}` to freeze the day's adherence snapshot ("this is
+  how it went") — that's what the `review` block and stats then read. Re-confirm
+  to refresh. `{action:"discard"}` fully resets the day: it clears every mark and
+  removes events added only as part of the reflection. Both return an
+  `undoToken`.
+- Only a **past** day can be reviewed, and only within the user's editable-past
+  window (yesterday for free/guest, deeper history on Pro); a mark or confirm
+  outside it is rejected with an upgrade message — relay it, don't retry.
 
 ## Weather
 
@@ -155,8 +186,13 @@ Use the forecast to place work, not to moralize about it:
 ## Workflow: review the day / week
 
 1. `mcp__reassign__get_schedule` for the range (`from`+`to`, or `compact:true`
-   for wide spans).
+   for wide spans). For a day already reviewed, read its `review` block
+   (adherence) and each event's `reflect` block alongside the plan.
 2. Summarize where time went by area; name one win and one concrete adjustment.
+3. If the user wants to **record** how a past day went (not just read it), mark
+   its events with `write_events`' `reflect` op, then freeze it with
+   `mcp__reassign__review_day {date, action:"confirm"}` — see §Reflection and
+   references/reflection.md. Surface the `undoToken`.
 
 ## Workflow: reshuffle / bulk edits
 
@@ -175,6 +211,9 @@ Use the forecast to place work, not to moralize about it:
   (§Event kinds). For wide read ranges pass `compact:true`; for recurring
   masters (rule/anchor/next occurrence) pass `includeSeries:true` →
   get_schedule returns a `series` array.
+- Record how a **past** event went with the `reflect` op
+  (`kept`/`skipped`/`changed`/`added` + optional actual times); freeze the day
+  with `mcp__reassign__review_day` (§Reflection).
 
 ## What not to do
 
@@ -189,8 +228,9 @@ Use the forecast to place work, not to moralize about it:
 Apply references/adhd-methods.md as ACTIONS on the dial, not advice you recite.
 Start with implementation intentions and externalized time. See
 references/workflows.md for extended multi-step scenarios,
-references/taxonomy.md for how areas and activity types map to the dial, and
-references/calendars.md for connected-calendar sync, event kinds, and mirroring.
+references/taxonomy.md for how areas and activity types map to the dial,
+references/calendars.md for connected-calendar sync, event kinds, and mirroring,
+and references/reflection.md for reviewing how a past day actually went.
 
 ## Feedback
 
