@@ -31,7 +31,8 @@ plugins/                                  ← repo root = plugin root
 │           ├── adhd-methods.md
 │           ├── workflows.md
 │           ├── taxonomy.md
-│           └── calendars.md          ← connected-calendar sync, event kinds, mirroring
+│           ├── calendars.md          ← connected-calendar sync, event kinds, mirroring
+│           └── reflection.md         ← reviewing a past day: marks + adherence
 ├── server.json                           ← Official MCP Registry entry
 ├── package.json                          ← npm client shim
 ├── bin/reassign-mcp.js
