@@ -11,14 +11,17 @@ description: >-
   imported event blocks or doesn't, or want a non-blocking band (sleep, fasting)
   or a see-only reference event (a partner's calendar, a kid's training). Use it
   too when they ask about the weather around a plan — whether to schedule a run,
-  commute, or other outdoor block around rain or daylight. Use it as well when
+  commute, or other outdoor block around rain or daylight. Use it too when they
+  ask about their energy or the best time for focus or deep work — peak and dip windows,
+  when they'll be most alert — so demanding work lands in a peak and admin in the
+  afternoon dip. Use it as well when
   they look back on a past day or week — how it actually went, what they kept,
   skipped, or changed, how closely they hit the plan — and want to record that
   reflection. Always call get_schedule before proposing or changing any times.
 license: Apache-2.0
-allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__send_feedback
+allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -150,6 +153,44 @@ Use the forecast to place work, not to moralize about it:
 - **Don't invent weather-mood rules.** There's no reliable "do deep work when
   it's raining" theory — the effect is tiny and personal. Only act on a pattern
   the *user* has stated ("gray days help me focus"); never prescribe one.
+
+## Energy
+
+The user has a forecast daily **energy curve** — when they'll be most alert —
+built from their logged sleep (a two-process circadian + sleep-pressure model),
+any tracked caffeine/intakes, and personalized over time from the energy levels
+they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
+`mcp__reassign__get_energy` is the only way to read it.
+
+- Reach for `mcp__reassign__get_energy` when placement should follow alertness
+  (where to put focus/deep work vs. admin/errands) or when the user asks how
+  their energy looks or when they're at their best. It returns a compact day
+  overview — the peak/dip windows, today's current reading + its drivers, and how
+  calibrated the estimate is — not a per-hour dump.
+- It defaults to today and the user's own data. Pass `date` (ISO `YYYY-MM-DD`)
+  for another day: a future day forecasts from habitual sleep; a past day is
+  reflection-aware (it reads the actual logged sleep) but energy is still
+  *modeled, not measured* — don't present it as a record of how the day felt.
+- It needs at least one logged night of sleep. With none, it returns a short
+  nudge to log sleep first — relay that, don't fabricate a curve.
+- It's read-only and never changes the plan. The energy curve is also an opt-in
+  **dial layer** (off by default): `show_day` paints it only when the user has
+  enabled the energy layer, but `get_energy` always reads it (calling it is
+  explicit intent).
+
+### Planning with energy
+
+- **Peak → demanding work.** Put deep/focus work and the hardest task ("the
+  frog") in a morning or evening **peak**; steer admin, errands, and low-stakes
+  work into the post-lunch **dip**. This replaces guessing from the user's
+  stated chronotype when real data exists — see references/adhd-methods.md
+  §Chronotype / energy placement.
+- **Flag, don't silently place.** If demanding work already sits in a known
+  dip, flag it and offer a move into the nearest peak (a SKILL.md "what not to
+  do" rule).
+- **Pair with weather and daylight.** A morning outdoor block in the daylight
+  window doubles as a circadian anchor — line it up with the morning peak rather
+  than treating the two layers separately.
 
 ## Workflow: schedule a block
 

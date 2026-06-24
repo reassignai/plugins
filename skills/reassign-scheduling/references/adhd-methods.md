@@ -74,11 +74,13 @@ open-ended tasks — schedule a hard-edged block and let the edge, not completio
 end it. Both are just events; the difference is whether you let the block expand.
 
 ### Chronotype / energy placement
-🩺 Place demanding/deep work in the user's stated **peak** window and
-admin/shallow work in the **trough** — read the energy hints from
-`get_schedule`'s `userPreferences` and the day's load. Prefer ~90-minute deep
-blocks. Never schedule deep work into a known trough without flagging it (a
-SKILL.md "what not to do" rule).
+🩺 Place demanding/deep work in the user's **peak** window and admin/shallow
+work in the **trough**. Two sources, in order of preference: when the user has
+logged sleep, `get_energy` returns their actual forecast peak/dip windows for
+the day (see SKILL.md §Energy) — use those; otherwise fall back to the
+chronotype/energy hints in `get_schedule`'s `userPreferences` plus the day's
+load. Prefer ~90-minute deep blocks. Never schedule deep work into a known
+trough without flagging it (a SKILL.md "what not to do" rule).
 
 ### Pomodoro
 For a long block, segment it 25/5 (or 50/10) rather than scheduling one
