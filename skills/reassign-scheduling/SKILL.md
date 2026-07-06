@@ -17,11 +17,14 @@ description: >-
   afternoon dip. Use it as well when
   they look back on a past day or week — how it actually went, what they kept,
   skipped, or changed, how closely they hit the plan — and want to record that
-  reflection. Always call get_schedule before proposing or changing any times.
+  reflection. Use it too when they want to capture a task without a time yet,
+  park a block for later, jot something into their inbox/backlog, or place a
+  parked block onto the dial. Always call get_schedule before proposing or
+  changing any times.
 license: Apache-2.0
-allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
+allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
 metadata:
-  version: "1.5.0"
+  version: "1.5.1"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -39,6 +42,9 @@ advice you recite.
   single call it anchors `now`, the user's `areas`, `activityTypes`,
   `userPreferences`, existing events, and the day's free slots + area/type
   load. No args = today; pass `date`, `from`+`to`, or `dates` for other ranges.
+  It also reports `backlogCount` (parked, un-timed blocks); pass
+  `includeBacklog:true` for the items or `backlogQuery` to find one by name
+  (see §Backlog).
 - Times are 24-hour HH:MM in the user's timezone; dates are ISO YYYY-MM-DD.
 - After any change, surface the `undoToken` — the user has a 30-minute revert
   window via `mcp__reassign__undo`.
@@ -192,6 +198,54 @@ they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
   window doubles as a circadian anchor — line it up with the morning peak rather
   than treating the two layers separately.
 
+## Backlog (parked blocks)
+
+The **backlog** is the user's inbox of *parked blocks* — intentions captured
+without a time yet ("wash the car", "call the dentist"). It's the ADHD
+capture/externalize move made concrete: get a task out of the head and onto a
+tray without committing to a slot. Backlog is a **Pro feature** — a `capture`,
+`schedule`, or `park` from a free/guest user is refused with an upgrade message;
+relay it, don't retry.
+
+- **Read** through `get_schedule`: `backlogCount` reports how many parked blocks
+  exist (always present); pass `includeBacklog:true` for the items (top of tray
+  first, capped) or `backlogQuery` to find one by name. There is no separate
+  read tool — don't call `manage_backlog` just to look.
+- **Write** through `mcp__reassign__manage_backlog` (`ops`, ≤50, atomic by
+  default — pass `partial:true` for best-effort). Each op is one of:
+  - `capture` — create a parked block (`name`, optional `notes`,
+    `durationHours`, and area/type by id or `areaName`/`activityTypeName`).
+  - `update` — edit one by `id`.
+  - `remove` — delete one by `id` (reversible → `undoToken`).
+  - `schedule` — **place** a parked block on the dial at `date`+`start` (its
+    `durationHours` sizes it; pass `recurrence` to repeat) and lift it off the
+    tray.
+  - `park` — **move** a dial event (`eventId`) back into the tray. Works only on
+    a native or owned-calendar one-off that hasn't been reviewed; a recurring,
+    sleep/non-blocking, reviewed, or not-owned event is refused with a reason
+    (edit it on the dial instead). Parking a calendar-linked event removes its
+    calendar copy but remembers the calendar, so re-scheduling republishes there.
+- `schedule` and `park` are **inverses**: to undo a placement, park it; to undo
+  a park, schedule it. Surface the `undoToken` after any write.
+
+### Planning with backlog
+
+Treat the tray as a first-class part of the plan, not a side list:
+
+- **Capture instead of cram.** When a task has no clear time, the day is
+  already full, or the user is rattling off more than fits, `capture` it to the
+  backlog rather than forcing a block onto the dial. Parking reduces overwhelm —
+  it's the externalize step, not a failure to schedule.
+- **Plan-the-day pulls from the tray.** When filling free slots or the user says
+  "plan my day", read the backlog and offer to place parked blocks into fitting
+  windows — oldest/biggest first, and honor area/type + energy (demanding parked
+  work → a peak; admin → the dip). Don't place silently; propose, then
+  `schedule`.
+- **Review sweeps leftovers back.** When a planned block was skipped or didn't
+  finish, offer to `park` it for later instead of dropping it — the intention
+  survives without pretending it happened. (Reflection records what *did*
+  happen; parking carries forward what still needs to.)
+
 ## Workflow: schedule a block
 
 1. `mcp__reassign__get_schedule` (no args = today) to anchor `now` and load.
@@ -221,8 +275,12 @@ they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
    already give availability. There is no separate find-free-slots tool.
 2. Place demanding work in the user's stated peak window and admin/shallow work
    in the trough.
-3. Offer the slot; on yes → `mcp__reassign__schedule` →
-   `mcp__reassign__confirm_schedule`.
+3. If `backlogCount > 0`, read the tray (`includeBacklog:true`) and offer to
+   fill the slot from a parked block before inventing new work — oldest/biggest
+   first, matched to the window (§Backlog).
+4. Offer the slot; on yes → `mcp__reassign__schedule` →
+   `mcp__reassign__confirm_schedule` (or `manage_backlog` `schedule` op to place
+   a parked block directly).
 
 ## Workflow: review the day / week
 
@@ -234,6 +292,9 @@ they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
    its events with `write_events`' `reflect` op, then freeze it with
    `mcp__reassign__review_day {date, action:"confirm"}` — see §Reflection and
    references/reflection.md. Surface the `undoToken`.
+4. For work that was skipped or didn't finish, offer to `park` it back to the
+   backlog (`manage_backlog`) so the intention carries forward instead of being
+   dropped (§Backlog).
 
 ## Workflow: reshuffle / bulk edits
 
@@ -247,6 +308,8 @@ they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
   `render` flags as `write_events`).
 - Add or rename areas and activity types via `mcp__reassign__manage_categories`
   — create the area first, then reference its id in `write_events`.
+- Capture, place, or park un-timed blocks via `mcp__reassign__manage_backlog`
+  (Pro; `capture`/`update`/`remove`/`schedule`/`park`) — §Backlog.
 - Locate an event without an id via `mcp__reassign__find_event`.
 - Set `kind` on a create/update to make an event non-blocking or reference
   (§Event kinds). For wide read ranges pass `compact:true`; for recurring

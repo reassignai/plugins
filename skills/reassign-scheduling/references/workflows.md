@@ -85,6 +85,31 @@ See references/calendars.md for the full surface. The flow:
    `aiClassify`/`aiContext` in `integrations`. Don't set `syncTo` yourself —
    it's the dial picker's job (calendars.md §syncTo).
 
+## Working the backlog (parked blocks)
+
+Backlog is a **Pro feature** (see SKILL.md §Backlog). The tray holds *un-timed*
+intentions; the write surface is `manage_backlog`, the read path is
+`get_schedule` (`backlogCount` → `includeBacklog:true`/`backlogQuery`).
+
+1. **Capture without cramming.** The user rattles off tasks with no clear time,
+   or the day's already full → `manage_backlog` `capture` ops (one batch, up to
+   50) instead of forcing blocks onto the dial. Attach `durationHours` and
+   area/type where known so a later placement sizes and classifies itself.
+2. **Plan the day from the tray.** On "plan my day" / filling free slots:
+   `get_schedule` with `includeBacklog:true`, then match parked blocks to
+   `freeSlots` — oldest/biggest first, demanding work into an energy peak, admin
+   into the dip. Propose the placements; on yes, place each with a `schedule` op
+   (`id`+`date`+`start`; add `recurrence` to repeat). Placing lifts it off the
+   tray. Surface the `undoToken`.
+3. **Park what slips.** Reviewing a day, a block was skipped or unfinished →
+   offer to `park` it (`eventId`) back to the tray so the intention carries
+   forward. Park only accepts a native/owned-calendar one-off that hasn't been
+   reviewed; a recurring, sleep, reviewed, or not-owned event is refused with a
+   reason — edit it on the dial instead. `schedule` and `park` are inverses, so
+   an accidental placement or park is undone by its opposite.
+4. **Prune.** Drop a dead intention with `remove` (reversible → `undoToken`);
+   edit one in place with `update`.
+
 ## Reference & non-blocking events
 
 1. The user wants something *visible but not blocking* — a partner's event they
