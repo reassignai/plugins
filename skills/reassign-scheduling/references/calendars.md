@@ -1,9 +1,25 @@
 # Connected calendars, sync, and event kinds
 
-Reassign is dial-first, but a user can connect an external calendar (Google) and
-get **two-way sync**: imported events appear on the dial, and edits to linked
-events flow back to the provider. Most of this is automatic — your job is to
-read the context, respect ownership, and pick the right event `kind`.
+Reassign is dial-first, but a user can connect an external source and get
+**two-way sync**: imported events appear on the dial, and edits to linked events
+flow back to the provider. Most of this is automatic — your job is to read the
+context, respect ownership, and pick the right event `kind`.
+
+## Providers
+
+Three sources can be connected (`get_schedule`'s per-event `source` and each
+`integrations.sources[].provider` carries the key):
+
+| `provider` | What it is | Notes |
+|---|---|---|
+| `google` | Google Calendar | full two-way calendar sync |
+| `microsoft` | Outlook Calendar | full two-way calendar sync |
+| `todoist` | Todoist (a **task** source) | projects surface as calendars, tasks as events; two-way (writes back due/duration). Tasks are always **one-offs** — a task-linked event never recurs. |
+
+They behave the same from the skill's side — the rules below are
+provider-agnostic. The one Todoist-specific behaviour is task completion:
+marking a task-linked event's reflect status mirrors to the task's lifecycle
+(`kept` closes it, `skipped` reopens it) — see references/reflection.md.
 
 ## Event kinds (the third axis)
 
@@ -37,30 +53,32 @@ calendar linked"). Shape:
   When off, it's raw sync: events mirror the provider's busy flag and nothing is
   AI-excluded, but per-calendar `defaultArea`/`defaultType`/`defaultKind` still
   apply.
-- `aiContext` (string, optional) — free text the user wrote about themselves,
-  fed to the classifier.
+- `aiRules` (string, optional) — the compiled "AI memory layer": the user's raw
+  guidance (account-wide context + every per-calendar instruction) already
+  compiled into one contradiction-free ruleset that the classifier reads. Absent
+  when nothing has been compiled yet.
 - `defaultSyncCalendarId` (optional) — the calendar new dial events publish to
-  by default. Absent if the user hasn't set one (or it's stale).
+  by default. Absent if the user hasn't set one (or it's stale / no longer
+  writable).
 - `sources[]` — one per connected provider: `provider`, `account`, `status`
   (`"connected"` is the only one that syncs; also `disconnected`/`revoked`/
   `error`), and `calendars[]`.
-- Each calendar: `id`, `name`, `writable` (can we push here), `showOnDial`,
-  `enabled` (false ⇒ paused), and the classification fallbacks used when the AI
-  is unsure — `defaultKind`, `defaultArea`/`defaultType` (referencing the
-  top-level taxonomy), and the free-text `instructions` hint (also a sync
-  filter).
+- Each calendar: `id`, `name`, `writable` (can we push here), and the
+  classification fallbacks used when the AI is unsure — `defaultKind`,
+  `defaultArea`/`defaultType` (referencing the top-level taxonomy), and the
+  calendar's own `timeZone` (a fallback when the user has no selected zone).
 
 Use it to **explain**, not to micro-manage: why an event imported as
 non-blocking (its calendar's `defaultKind`, or the classifier), where a new
-event will sync (`defaultSyncCalendarId`), or why a calendar isn't importing
-(`enabled: false` / `status` ≠ connected).
+event will sync (`defaultSyncCalendarId`), or why a source isn't importing
+(`status` ≠ connected).
 
 ## Per-event sync fields
 
 On each event in `get_schedule` / `find_event`:
 
-- `source` — `"reassign"` for a native event, else the provider (`"google"`).
-  Omitted when it's native.
+- `source` — `"reassign"` for a native event, else the provider key
+  (`"google"` / `"microsoft"` / `"todoist"`). Omitted when it's native.
 - `calendar` — the linked calendar's name, when the event came from / syncs to
   one.
 - `readOnly: true` — the event is from a calendar the user **doesn't own**.
@@ -84,9 +102,9 @@ There is **no separate sync tool**. When the user has a calendar connected:
 - This includes recurring series: edits respect `scope` (`all`/`future`/`this`)
   and propagate the matching change to the provider's series.
 
-So plan and edit normally — don't warn the user about "also updating Google"
-unless it matters; do confirm before destructive edits as usual, and surface the
-`undoToken`.
+So plan and edit normally — don't warn the user about "also updating the
+provider" unless it matters; do confirm before destructive edits as usual, and
+surface the `undoToken`.
 
 ## `syncTo` — leave it alone
 
