@@ -8,7 +8,10 @@ name: Publish to npm
 # setup on npmjs.com → the @reassign/mcp package → Settings → Trusted Publisher:
 #   GitHub org: reassignai · repository: plugins · workflow: publish-npm.yml
 # npm must already host the package (publish 1.0.0 once locally first), and the
-# CLI must be >= 11.5.1 for OIDC, hence the `npm install -g npm@latest` step.
+# CLI must be >= 11.5.1 for OIDC provenance. We get that from Node 24's BUNDLED
+# npm (24.5.0+ ships npm >= 11.5.1) instead of `npm install -g npm@latest` — the
+# in-place global upgrade prunes bundled deps (drops `sigstore`) and breaks
+# `npm publish` provenance with "Cannot find module 'sigstore'".
 # Provenance is generated automatically under trusted publishing.
 on:
   push:
@@ -28,11 +31,8 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
-
-      - name: Upgrade npm for trusted publishing (OIDC needs >= 11.5.1)
-        run: npm install -g npm@latest
 
       - name: Verify package.json version matches tag
         run: |
