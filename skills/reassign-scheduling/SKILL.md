@@ -7,7 +7,8 @@ description: >-
   work on ADHD-friendly time management — and also whenever they mention
   calendars, time blocking, deep work, pomodoros, body doubling, "eat the
   frog," or say they feel overwhelmed, scattered, or behind. Use it too when
-  they connect, sync, or mirror a calendar (Google Calendar), ask why an
+  they connect, sync, or mirror a calendar (Google Calendar, Outlook) or a
+  task list (Todoist), ask why an
   imported event blocks or doesn't, or want a non-blocking band (sleep, fasting)
   or a see-only reference event (a partner's calendar, a kid's training). Use it
   too when they ask about the weather around a plan — whether to schedule a run,
@@ -77,23 +78,25 @@ When choosing a kind, ask whether the user is *doing* the thing (blocking),
 
 ## Calendar sync
 
-When the user has connected a calendar (e.g. Google), `get_schedule` returns an
-`integrations` block and events carry sync fields. The essentials:
+When the user has connected a source — Google Calendar, Outlook (Microsoft),
+or Todoist (a *task* source whose projects surface as calendars) — `get_schedule`
+returns an `integrations` block and events carry sync fields. The essentials:
 
-- An event's `source` is `"reassign"` (native) or the provider (`"google"`); a
+- An event's `source` is `"reassign"` (native) or the provider
+  (`"google"` / `"microsoft"` / `"todoist"`); a
   calendar-linked event also carries its `calendar` name. An event with
   `readOnly: true` is from a calendar the user doesn't own — **never edit or
   delete it**; the change would silently revert.
 - Editing or creating a calendar-linked event (or any event under the user's
   default sync calendar) through `write_events`/`schedule`, and deleting one
-  through `delete_events`, **propagates to Google automatically** — exactly like
-  editing on the dial. You don't call a separate sync tool.
+  through `delete_events`, **propagates to the provider automatically** — exactly
+  like editing on the dial. You don't call a separate sync tool.
 - `integrations` carries connected `sources` (provider/account/status +
-  `calendars`), the account-wide AI classifier (`aiClassify`/`aiContext`) and
-  the `defaultSyncCalendarId` new events sync to; per calendar it carries the
-  `defaultKind`/`defaultArea`/`defaultType`/`instructions` fallbacks. Use it to
-  explain *why* an event imported as non-blocking, or *where* a new event will
-  sync — see references/calendars.md for the full surface and `syncTo`.
+  `calendars`), the account-wide AI classifier (`aiClassify`, plus the compiled
+  `aiRules`) and the `defaultSyncCalendarId` new events sync to; per calendar it
+  carries the `defaultKind`/`defaultArea`/`defaultType`/`timeZone` fallbacks. Use
+  it to explain *why* an event imported as non-blocking, or *where* a new event
+  will sync — see references/calendars.md for the full surface and `syncTo`.
 
 ## Reflection (how a past day went)
 

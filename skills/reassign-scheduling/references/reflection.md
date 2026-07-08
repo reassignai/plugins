@@ -63,6 +63,13 @@ batch together and return an `undoToken`.
 - **Recurring occurrences.** Marking one occurrence of a series (an id like
   `seriesId@YYYY-MM-DD`) targets that single occurrence's exception child, never
   the base series — so reflecting Tuesday's standup doesn't touch every standup.
+- **Todoist-linked tasks mirror completion.** When the reflected event is linked
+  to a Todoist task, the mark drives the task's lifecycle in the *same* atomic
+  batch (one `undoToken`): **`kept` closes** the task, **`skipped` reopens** it.
+  `changed` and `added` never touch the task. Task links are always one-offs, so
+  this only applies to single events, never a recurring series. Nothing extra to
+  call — reflect as usual and the task stays in sync (see
+  references/calendars.md §Providers).
 - **No conflict check.** A reflect op records the past; it never claims a slot,
   so it won't conflict with anything.
 
