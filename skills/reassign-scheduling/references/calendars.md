@@ -17,9 +17,18 @@ Three sources can be connected (`get_schedule`'s per-event `source` and each
 | `todoist` | Todoist (a **task** source) | projects surface as calendars, tasks as events; two-way (writes back due/duration). Tasks are always **one-offs** — a task-linked event never recurs. |
 
 They behave the same from the skill's side — the rules below are
-provider-agnostic. The one Todoist-specific behaviour is task completion:
-marking a task-linked event's reflect status mirrors to the task's lifecycle
-(`kept` closes it, `skipped` reopens it) — see references/reflection.md.
+provider-agnostic. Two behaviours are Todoist-specific:
+
+- **Task completion.** Marking a task-linked event's reflect status mirrors to
+  the task's lifecycle (`kept` closes it, `skipped` reopens it) — see
+  references/reflection.md.
+- **Untimed tasks land in the backlog tray**, not on the dial. A date-only due
+  becomes the parked block's planned day (`plannedDate`); a due + later
+  deadline becomes its planned window (`plannedDate`…`plannedUntil`); a
+  deadline alone becomes the planned day (`plannedDate` — "finish by Friday"
+  reads as Friday). That planned day/window is **provider-owned**: a
+  `manage_backlog` `update` touching it is refused — the user changes the
+  date in Todoist, and it mirrors back. See SKILL.md §Backlog.
 
 ## Event kinds (the third axis)
 

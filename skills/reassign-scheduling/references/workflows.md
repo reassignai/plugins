@@ -89,25 +89,35 @@ See references/calendars.md for the full surface. The flow:
 
 Backlog is a **Pro feature** (see SKILL.md §Backlog). The tray holds *un-timed*
 intentions; the write surface is `manage_backlog`, the read path is
-`get_schedule` (`backlogCount` → `includeBacklog:true`/`backlogQuery`).
+`get_schedule` (`backlogCount` → `includeBacklog:true`/`backlogQuery`/
+`backlogPlannedOn`). A parked block may carry a planned day or window — see
+SKILL.md §Backlog.
 
 1. **Capture without cramming.** The user rattles off tasks with no clear time,
    or the day's already full → `manage_backlog` `capture` ops (one batch, up to
    50) instead of forcing blocks onto the dial. Attach `durationHours` and
-   area/type where known so a later placement sizes and classifies itself.
-2. **Plan the day from the tray.** On "plan my day" / filling free slots:
-   `get_schedule` with `includeBacklog:true`, then match parked blocks to
-   `freeSlots` — oldest/biggest first, demanding work into an energy peak, admin
-   into the dip. Propose the placements; on yes, place each with a `schedule` op
-   (`id`+`date`+`start`; add `recurrence` to repeat). Placing lifts it off the
-   tray. Surface the `undoToken`.
+   area/type where known so a later placement sizes and classifies itself. A
+   day named without a time ("sometime Friday") → capture with a planned
+   day/window, not an invented start time (SKILL.md §Backlog).
+2. **Plan the day from the tray.** On "plan my day" / filling free slots: one
+   `get_schedule` read with `includeBacklog:true` — every item carries its
+   planned day/window and `overdue` flag. Match parked blocks to `freeSlots` —
+   planned-for-that-day and `overdue: true` blocks first, then oldest/biggest,
+   demanding work into an energy peak, admin into the dip. Propose the
+   placements; on yes, place each with a `schedule` op (`id`+`date`+`start`;
+   add `recurrence` to repeat). Placing lifts it off the tray; revert one by
+   parking it back (step 3).
 3. **Park what slips.** Reviewing a day, a block was skipped or unfinished →
    offer to `park` it (`eventId`) back to the tray so the intention carries
    forward. Park only accepts a native/owned-calendar one-off that hasn't been
    reviewed; a recurring, sleep, reviewed, or not-owned event is refused with a
    reason — edit it on the dial instead. `schedule` and `park` are inverses, so
    an accidental placement or park is undone by its opposite.
-4. **Prune.** Drop a dead intention with `remove` (reversible → `undoToken`);
+4. **Re-plan overdue blocks.** An `overdue: true` block outlived its planned
+   window — offer to place it, re-plan it, or return it to Someday per
+   SKILL.md §Backlog (a task-app-linked block's dates are provider-owned;
+   see references/calendars.md).
+5. **Prune.** Drop a dead intention with `remove` (reversible → `undoToken`);
    edit one in place with `update`.
 
 ## Reference & non-blocking events
