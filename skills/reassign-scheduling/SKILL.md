@@ -26,7 +26,7 @@ description: >-
 license: Apache-2.0
 allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
 metadata:
-  version: "1.7.0"
+  version: "1.7.1"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -334,7 +334,13 @@ Treat the tray as a first-class part of the plan, not a side list:
   atomic by default — pass `partial:true` to allow per-op failures). Reference
   areas/types by id, or by `areaName`/`activityTypeName`. For recurring events
   set `scope` to `all`/`future`/`this` — `future`/`this` also need an
-  `occurrenceDate`. Pass `render:true` to repaint an open dial in the same call.
+  `occurrenceDate`. Changing the repeat itself (`recurrence`/`recurrenceEnd`) is
+  always series-level: target the series master — pointing it at a single changed
+  occurrence is refused with the master's id to use instead — and don't ride it on
+  a `scope:"this"` update (also refused). Split a one-occurrence detail edit and a
+  repeat change into two ops. Setting `recurrence:null` on a recurring master turns
+  it back into a one-off, disposing the series' overrides. Pass `render:true` to
+  repaint an open dial in the same call.
 - Remove events or clear a day/range via `mcp__reassign__delete_events`
   (`ops` = `delete`|`clear`; reversible → `undoToken`; same `scope`/`partial`/
   `render` flags as `write_events`).
