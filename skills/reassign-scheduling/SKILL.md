@@ -92,7 +92,8 @@ the rhythm on the one block instead.
   both the break placement and the interval count are derived from the block's
   length, so you never list individual intervals. On `update`,
   `focusIntervals: null` removes an existing rhythm (a `create` can't clear what
-  isn't there yet). A rhythm set on a recurring block carries series-wide.
+  isn't there yet). When a recurring series is forked or split, the rhythm
+  carries onto the new rows.
 - **Blocking only.** A non-blocking or reference block silently ignores the field
   — it's not an error, but the write echo just omits `focusIntervals`. Set a
   rhythm only where the user is *doing* focused work.
@@ -101,9 +102,9 @@ the rhythm on the one block instead.
   `plannedIntervals` is derived from the span + cadence, so it stays in lockstep
   as the block resizes; `completedIntervals` rides only once the user has tracked
   completions. Omitted on any block without a rhythm.
-- Focus intervals are a **Pro** feature. If a write comes back refused with an
-  upgrade message, relay it rather than retrying. See adhd-methods.md §Pomodoro
-  for when to reach for them.
+- Focus intervals are a **Pro** feature — surface that when a user asks for
+  them, and relay any upgrade prompt rather than retrying. See adhd-methods.md
+  §Pomodoro for when to reach for them.
 
 ## Calendar sync
 

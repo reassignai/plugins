@@ -84,8 +84,8 @@ trough without flagging it (a SKILL.md "what not to do" rule).
 
 ### Pomodoro
 For a long focus block, give it a focus/break rhythm rather than scheduling one
-unbroken slab. Reassign does this natively — set `focusIntervals:{focusMin,
-breakMin}` on the one **blocking** block (e.g. `{focusMin:25, breakMin:5}` or
+unbroken slab. Reassign does this natively — set `focusIntervals: {focusMin, breakMin}`
+on the one **blocking** block (e.g. `{focusMin:25, breakMin:5}` or
 `{focusMin:50, breakMin:10}`) instead of creating separate buffer events. The
 block stays a single event and the breaks are derived from its length; see
 SKILL.md §Focus intervals for the full contract (blocking-only, `null` to clear,
