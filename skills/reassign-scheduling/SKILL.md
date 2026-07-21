@@ -77,6 +77,34 @@ When choosing a kind, ask whether the user is *doing* the thing (blocking),
 *living through* it as a backdrop (non-blocking), or just *watching* it
 (reference). Don't make everything blocking.
 
+## Focus intervals (pomodoro)
+
+A **blocking** event can carry a focus/break rhythm — the Reassign-native
+pomodoro. It stays **one event** (it selects, drags, recurs, and syncs as a
+single block); the breaks are *derived* from the block's length, never stored
+and never separate events. Don't model a pomodoro as its own buffer blocks — set
+the rhythm on the one block instead.
+
+- **Set / change.** Pass `focusIntervals: {focusMin, breakMin}` on a
+  `write_events` `create` or `update` — integers, `focusMin` 5–180, `breakMin`
+  1–60 (e.g. `{focusMin:25, breakMin:5}` or `{focusMin:50, breakMin:10}`). The
+  breaks fall *between* the focus intervals and the block always ends on a focus;
+  both the break placement and the interval count are derived from the block's
+  length, so you never list individual intervals. On `update`,
+  `focusIntervals: null` removes an existing rhythm (a `create` can't clear what
+  isn't there yet). A rhythm set on a recurring block carries series-wide.
+- **Blocking only.** A non-blocking or reference block silently ignores the field
+  — it's not an error, but the write echo just omits `focusIntervals`. Set a
+  rhythm only where the user is *doing* focused work.
+- **Read.** A blocking block that carries a rhythm serializes a `focusIntervals`
+  block — `{focusMin, breakMin, plannedIntervals, completedIntervals?}`.
+  `plannedIntervals` is derived from the span + cadence, so it stays in lockstep
+  as the block resizes; `completedIntervals` rides only once the user has tracked
+  completions. Omitted on any block without a rhythm.
+- Focus intervals are a **Pro** feature. If a write comes back refused with an
+  upgrade message, relay it rather than retrying. See adhd-methods.md §Pomodoro
+  for when to reach for them.
+
 ## Calendar sync
 
 When the user has connected a source — Google Calendar, Outlook (Microsoft),

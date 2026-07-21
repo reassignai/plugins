@@ -7,8 +7,9 @@ doc is the colour + texture axes. Get all three right and the day reads at a
 glance; get them wrong and every block looks the same.
 
 - **Areas** = colour-coded categories / groups (work, health, family, errands).
-  Each area has a name (≤60 chars) and a 6-digit hex **color**. An event belongs
-  to one area; the area's color fills its arc on the dial.
+  Each area has a name (≤60 chars) and a hex **color** — `#rgb` or `#rrggbb`,
+  any case; Reassign normalizes it to lowercase `#rrggbb`. An event belongs to
+  one area; the area's color fills its arc on the dial.
 - **Activity types** = tags rendered as **fill patterns** layered on the area
   color (e.g. deep work vs meetings vs admin, all inside "Work"). Each has a name
   (≤60 chars) and a `pattern`. Valid patterns:
