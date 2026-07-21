@@ -83,10 +83,14 @@ load. Prefer ~90-minute deep blocks. Never schedule deep work into a known
 trough without flagging it (a SKILL.md "what not to do" rule).
 
 ### Pomodoro
-For a long block, segment it 25/5 (or 50/10) rather than scheduling one
-unbroken slab — represent the breaks as buffer events so they're visible and
-protected. Useful for task initiation and for people who lose time inside long
-blocks.
+For a long focus block, give it a focus/break rhythm rather than scheduling one
+unbroken slab. Reassign does this natively — set `focusIntervals: {focusMin, breakMin}`
+on the one **blocking** block (e.g. `{focusMin:25, breakMin:5}` or
+`{focusMin:50, breakMin:10}`) instead of creating separate buffer events. The
+block stays a single event and the breaks are derived from its length; see
+SKILL.md §Focus intervals for the full contract (blocking-only, `null` to clear,
+the `plannedIntervals`/`completedIntervals` read fields). Useful for task
+initiation and for people who lose time inside long blocks.
 
 ### Habit stacking
 Anchor a new behavior to an existing fixed event ("after morning standup →
