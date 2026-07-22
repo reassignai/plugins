@@ -72,6 +72,13 @@ batch together and return an `undoToken`.
   references/calendars.md §Providers).
 - **No conflict check.** A reflect op records the past; it never claims a slot,
   so it won't conflict with anything.
+- **A `kept` can arrive without you.** For up to 30 minutes past a block's end,
+  Reassign's focus mode offers an "As planned" verb that records `kept` on the
+  spot (on a recurring series, on that occurrence only). So an event may already
+  carry a `reflect` state before the user sits down to review the day — read the
+  block before re-asking how something went. This is independent of focus
+  interval check-offs, which never write a status of their own (see SKILL.md
+  §Focus intervals).
 
 ## Confirming / discarding the day: `review_day`
 

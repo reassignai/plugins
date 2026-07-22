@@ -90,7 +90,10 @@ on the one **blocking** block (e.g. `{focusMin:25, breakMin:5}` or
 block stays a single event and the breaks are derived from its length; see
 SKILL.md §Focus intervals for the full contract (blocking-only, `null` to clear,
 the `plannedIntervals`/`completedIntervals` read fields). Useful for task
-initiation and for people who lose time inside long blocks.
+initiation and for people who lose time inside long blocks. When the user wants
+to *start* — not plan — send them to focus mode (`/focus`), which runs any
+blocking block, rhythm or not; a rhythm just gives the run its interval
+structure.
 
 ### Habit stacking
 Anchor a new behavior to an existing fixed event ("after morning standup →
