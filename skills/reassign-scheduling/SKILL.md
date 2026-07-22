@@ -101,10 +101,33 @@ the rhythm on the one block instead.
   block — `{focusMin, breakMin, plannedIntervals, completedIntervals?}`.
   `plannedIntervals` is derived from the span + cadence, so it stays in lockstep
   as the block resizes; `completedIntervals` rides only once the user has tracked
-  completions. Omitted on any block without a rhythm.
-- Focus intervals are a **Pro** feature — surface that when a user asks for
-  them, and relay any upgrade prompt rather than retrying. See adhd-methods.md
-  §Pomodoro for when to reach for them.
+  completions. It's a **count, not a prefix** — the user marks intervals
+  individually, so `completedIntervals: 2` on a 4-interval block means two are
+  done, not necessarily the first two. Omitted on any block without a rhythm.
+- **Running a block (focus mode).** The user runs a block on the `/focus` page,
+  where the dial travels under a pinned now-marker and the current block is
+  named. That's where intervals get checked off, and it's what puts
+  `completedIntervals` in your reads. Focus mode works on **any** blocking
+  block — a block with no rhythm is simply one focus segment — so "let's focus
+  on this" doesn't require setting `focusIntervals` first. Point the user there
+  rather than narrating a timer yourself.
+- **Marks and reflection are independent.** Marking intervals never writes a
+  reflect `status`, and a reflect mark never back-fills intervals. Don't infer
+  one from the other: a block with `completedIntervals` may carry no `reflect`
+  block, and a `kept` event may show no completed intervals. (One overlap worth
+  knowing: for up to 30 minutes past a block's end, focus mode offers an
+  "As planned" verb that records `kept` — so a `reflect` state can appear
+  without the user having gone through a review flow.)
+- **A running block can re-time itself.** From focus mode the user can finish
+  early, add or drop an interval (which grows or shrinks the block by one
+  focus + break cycle at the same cadence), or extend by 15 minutes when they
+  run over. The cadence never changes, but the block's `end` and
+  `plannedIntervals` do. Re-read the day with `get_schedule` before scheduling
+  around a block the user is actively working through. (These re-time verbs are
+  withheld on a calendar-locked block, so a synced event won't drift this way.)
+- Focus intervals and focus mode are a **Pro** feature — surface that when a
+  user asks for them, and relay any upgrade prompt rather than retrying. See
+  adhd-methods.md §Pomodoro for when to reach for them.
 
 ## Calendar sync
 
