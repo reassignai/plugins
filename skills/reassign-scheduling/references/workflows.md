@@ -12,7 +12,10 @@ surface it.
 1. `get_schedule` with `from`+`to` spanning the past week (add `compact:true` so
    a 7-day pull stays readable).
 2. Summarize where time actually went **by area**, using each day's area/type
-   load. Name one win and one concrete adjustment — not a lecture.
+   load. Name one win and one concrete adjustment — not a lecture. Where blocks
+   carry microtasks, their `checklist` `done`/`total` is finer evidence than the
+   reflect state alone — a repeatedly half-finished block is a sizing problem,
+   not a discipline one, and the fix is a shorter block or fewer steps.
 3. Turn the adjustment into an edit now: e.g. move a recurring deep-work block
    out of a trough (write_events `move`/`update`), or protect a slipping Q2
    block as recurring (see adhd-methods.md §eisenhower--q2-protection).
@@ -98,7 +101,10 @@ SKILL.md §Backlog.
    50) instead of forcing blocks onto the dial. Attach `durationHours` and
    area/type where known so a later placement sizes and classifies itself. A
    day named without a time ("sometime Friday") → capture with a planned
-   day/window, not an invented start time (SKILL.md §Backlog).
+   day/window, not an invented start time (SKILL.md §Backlog). When the user
+   spells a parked intention out in pieces ("call the garage, get a quote, book
+   it in"), that's one block with `steps`, not three parked blocks — and the
+   steps ride along when it's later placed.
 2. **Plan the day from the tray.** On "plan my day" / filling free slots: one
    `get_schedule` read with `includeBacklog:true` — every item carries its
    planned day/window and `overdue` flag. Match parked blocks to `freeSlots` —
@@ -112,13 +118,55 @@ SKILL.md §Backlog.
    forward. Park only accepts a native/owned-calendar one-off that hasn't been
    reviewed; a recurring, sleep, reviewed, or not-owned event is refused with a
    reason — edit it on the dial instead. `schedule` and `park` are inverses, so
-   an accidental placement or park is undone by its opposite.
+   an accidental placement or park is undone by its opposite. **Park before you
+   mark:** an event carrying a reflect status is refused ("Reviewed events can't
+   be parked"), so parking has to happen before the `reflect` op, not after. For
+   a block that was *partly* done, `capture` its unticked steps as a new parked
+   block's `steps` instead of parking the whole thing — and wherever `park` is
+   refused (a reflected block, a recurring one, sleep, a non-owned calendar
+   event), that capture is the only way to carry the remainder forward.
 4. **Re-plan overdue blocks.** An `overdue: true` block outlived its planned
    window — offer to place it, re-plan it, or return it to Someday per
    SKILL.md §Backlog (a task-app-linked block's dates are provider-owned;
    see references/calendars.md).
 5. **Prune.** Drop a dead intention with `remove` (reversible → `undoToken`);
    edit one in place with `update`.
+
+## Breaking a block into microtasks
+
+The user is stuck on a block, or asks what a big one actually involves. See
+SKILL.md §Microtasks for the op contract; microtasks are **free** and work on any
+event kind — only carrying leftovers into the backlog (step 5) hits the Pro gate.
+
+1. `find_event` or `get_schedule` to resolve the block and — critically — read
+   its existing `checklist`. An `items` edit **replaces the whole list**, so
+   sending one built from memory silently deletes steps you didn't echo.
+2. Propose the steps in chat first. Size them to the block: the first small
+   enough to start in under five minutes (adhd-methods.md §chunking), roughly one
+   per focus interval where the block carries a rhythm, and few enough to fit its
+   length. Don't break down a block that isn't stalling.
+3. On yes, one `write_events` op:
+   `{op:"checklist", id, items:[{text}, …]}`. Preserve the `id` of any existing
+   step you're keeping so its checked state survives. On a recurring block,
+   decide scope explicitly and *say which you used*: `scope:"all"` (the default —
+   every occurrence) or `scope:"this"` + `occurrenceDate` for one day. Surface the
+   `undoToken`.
+4. As the user works, tick steps in a **separate call**:
+   `{op:"checklist", id, check:[…]}` — item ids or exact texts, always for one
+   occurrence, and only when they say it happened. This can't be batched with
+   step 3: two ops on the same event id in one `write_events` call are refused,
+   and a checkoff on a block whose steps don't exist *yet* is refused too. Read
+   the block back between the two if you need the new item ids — or just address
+   the steps by their exact text.
+5. When the block's day is reviewed, the unticked steps are the leftover
+   intention — offer to `capture` them into the backlog (§Working the backlog,
+   step 3) rather than letting them disappear. Backlog is **Pro**, so a free user
+   gets an upgrade message here even though the microtasks themselves were free;
+   relay it and leave the steps on the block.
+
+For a **parked** block, the same idea uses `manage_backlog`'s `steps` (plain
+strings, replaces the list) — there's no occurrence to tick against until it's
+scheduled, and the steps carry over when it is.
 
 ## Reference & non-blocking events
 

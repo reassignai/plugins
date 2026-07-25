@@ -2,31 +2,24 @@
 name: reassign-scheduling
 description: >-
   Plan, edit, and review the user's day on the Reassign circular 24-hour
-  calendar. Use whenever the user asks to schedule, block, move, find time,
-  plan their day or week, reshuffle, review where time went, protect focus, or
-  work on ADHD-friendly time management — and also whenever they mention
-  calendars, time blocking, deep work, pomodoros, body doubling, "eat the
-  frog," or say they feel overwhelmed, scattered, or behind. Use it too when
-  they connect, sync, or mirror a calendar (Google Calendar, Outlook) or a
-  task list (Todoist), ask why an
-  imported event blocks or doesn't, or want a non-blocking band (sleep, fasting)
-  or a see-only reference event (a partner's calendar, a kid's training). Use it
-  too when they ask about the weather around a plan — whether to schedule a run,
-  commute, or other outdoor block around rain or daylight. Use it too when they
-  ask about their energy or the best time for focus or deep work — peak and dip windows,
-  when they'll be most alert — so demanding work lands in a peak and admin in the
-  afternoon dip. Use it as well when
-  they look back on a past day or week — how it actually went, what they kept,
-  skipped, or changed, how closely they hit the plan — and want to record that
-  reflection. Use it too when they want to capture a task without a time yet,
-  park a block for later, jot something into their inbox/backlog, pencil a
-  parked block in for a day or range ("sometime this weekend"), ask what they
-  planned to get to today, or place a parked block onto the dial. Always call
-  get_schedule before proposing or changing any times.
+  calendar. Use whenever they schedule, block, move, or find time, plan a day or
+  week, reshuffle, protect focus, review where time went, or work on
+  ADHD-friendly time management — or mention time blocking, deep work,
+  pomodoros, body doubling, "eat the frog," or feeling overwhelmed, scattered,
+  or behind. Use it when they connect, sync, or mirror a calendar (Google,
+  Outlook) or task list (Todoist), ask why an imported event blocks, or want a
+  non-blocking band (sleep, fasting) or see-only reference event. Use it for
+  weather around a plan (a run or commute around rain or daylight), for energy
+  and peak/dip windows, and when they look back on a past day or week and want
+  to record that reflection. Use it when they capture a task with no time yet,
+  park a block, jot into their backlog, pencil one in for a day or range, ask
+  what they planned for today, or place a parked block on the dial. Use it when
+  they break a block into steps or microtasks, tick one off, or ask what's left.
+  Always call get_schedule before proposing or changing any times.
 license: Apache-2.0
 allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
 metadata:
-  version: "1.7.1"
+  version: "1.8.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -128,6 +121,83 @@ the rhythm on the one block instead.
 - Focus intervals and focus mode are a **Pro** feature — surface that when a
   user asks for them, and relay any upgrade prompt rather than retrying. See
   adhd-methods.md §Pomodoro for when to reach for them.
+
+## Microtasks (steps inside a block)
+
+An event can carry an ordered **microtask checklist** — the steps that make the
+block up ("Outline", "Draft the intro", "Send it"). This is the ADHD chunking
+move made concrete without fragmenting the dial: the block stays *one* block, and
+the steps live inside it. Microtasks are **free for every user** (unlike focus
+intervals and backlog) and work on **any** `kind`, not only blocking blocks.
+
+The model mirrors the focus-interval pair: a **template** — the steps, shared
+across a recurring series — and a per-occurrence **done set** — the ticks,
+belonging to one day. Every rule below follows from that split.
+
+- **Read.** A block that carries steps serializes a `checklist` block:
+  `{items: [{id, text, done}], done, total}`. `done`/`total` are derived, and
+  `done` counts only items still in the template. It's omitted on a block with no
+  steps — read absence as "none", not an error. Keep the item `id`s from the
+  read; they're how you edit or tick one step without disturbing the others.
+- **Set the steps** with `write_events`' `checklist` op and `items`:
+  `{op:"checklist", id, items:[{id?, text}]}` — up to 100 steps, text ≤200 chars.
+  It **replaces the whole list**, so add, rename, remove, and reorder are all
+  expressed as the resulting list: read the current items first, then send the
+  full list you want kept. Keep an existing item's `id` to preserve its checked
+  state; omit `id` to add a new step. `items: []` clears the checklist.
+- **Tick steps off** with the same op and `check` / `uncheck`:
+  `{op:"checklist", id, check:["Draft the intro"]}`. Each entry is an item `id`
+  **or its exact text** (case-insensitive), so you can use whichever the read
+  gave you. An entry matching nothing fails the op with the unmatched ones
+  named — re-read rather than guessing. Ticking a block that has no steps yet is
+  refused, so the `items` edit must land **first, in an earlier call**.
+- **One op per event, per call.** Two ops targeting the same event id in one
+  batch are refused outright ("already modified by an earlier op"). So a
+  `checklist` op carries *either* `items` *or* `check`/`uncheck` — never both —
+  and setting steps then ticking one means **two sequential `write_events`
+  calls**, not two ops in one. The same rule blocks pairing a `checklist` op with
+  a `reflect` or `update` op on that event: send them one call at a time.
+- **Scope.** A template edit is series-level by default (`scope:"all"`); pass
+  `scope:"this"` plus an `occurrenceDate` — or target the `seriesId@YYYY-MM-DD`
+  id — to change one day's steps only. Ticking off is **always** per-occurrence:
+  address a single day, so Monday's ticks can never land on Tuesday. Omit
+  `scope` on a checkoff — `"future"` is refused outright, and `"all"` on a
+  recurring series is refused too, so the day-scoped id is the reliable form.
+- **Local metadata, never synced.** Steps don't touch the block's name, time, or
+  kind, and they never propagate to **any** provider — not Google, Outlook, or
+  Todoist, whose own subtasks are a separate thing Reassign doesn't mirror. A
+  calendar-linked block carries steps safely; a `readOnly` event still can't be
+  written at all.
+- **Independent of reflect and focus intervals.** Every step being done does not
+  mark the block `kept`, and a `kept` mark doesn't tick steps. Don't infer either
+  from the other — report what the `checklist` block actually says.
+- **Parked blocks carry steps too**, as plain text (there's no occurrence to tick
+  against until they're placed) — see §Backlog.
+- **Don't send them to the app's AI for this.** Reassign has its own AI breakdown
+  (`/microtasks` in the command bar, formerly `/breakdown`) but it's **Pro**,
+  while the op above is free — so proposing steps and writing them yourself
+  works for every user. Just propose before writing.
+
+### Planning with microtasks
+
+- **Break down what's stalling, not everything.** Reach for steps when a block
+  is vague, dreaded, or big enough that starting is the hard part ("Taxes",
+  "Write the proposal") — the first step should be small enough to begin in under
+  five minutes (adhd-methods.md §chunking). A 30-minute errand doesn't need a
+  checklist, and steps on everything are just noise.
+- **Size the steps to the block.** Roughly one step per focus interval on a block
+  that carries a rhythm, and few enough that the list fits the block's length —
+  a 45-minute block with twelve steps is a plan to fail.
+- **Propose, then write.** Show the steps you'd add and let the user amend before
+  sending the op — the same rule as placing blocks.
+- **Never tick on the user's behalf.** Only `check` a step when the user says it
+  happened. A speculative tick corrupts the record they're going to reflect on.
+- **Leftover steps are the next intention.** When a block's steps are partly
+  done, the unticked ones are what carries forward — offer to `capture` them
+  into the backlog rather than letting them vanish with the day. Note the tier
+  seam: microtasks are free, but **backlog is Pro**, so for a free user that
+  offer comes back as an upgrade message. Relay it and suggest keeping the steps
+  on the block instead; don't retry.
 
 ## Calendar sync
 
@@ -271,7 +341,8 @@ relay it, don't retry.
   that, not an error. Pass `includeBacklog:true` for the items (top of tray
   first, capped) or `backlogQuery` to find one by name; each item carries its
   `plannedDate`/`plannedUntil` when set, plus `overdue: true` once the window's
-  end has slipped past today. `backlogPlannedOn` (ISO date) narrows to the
+  end has slipped past today, and `steps` (plain strings) when it carries
+  microtasks. `backlogPlannedOn` (ISO date) narrows to the
   blocks whose planned day or window covers that day; it implies
   `includeBacklog` and composes with `backlogQuery`. An **overdue block never
   matches it** (its window has passed) — overdue items surface only on the
@@ -280,8 +351,9 @@ relay it, don't retry.
 - **Write** through `mcp__reassign__manage_backlog` (`ops`, ≤50, atomic by
   default — pass `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
-    `durationHours`, area/type by id or `areaName`/`activityTypeName`, and an
-    optional `plannedDate` or `plannedDate`+`plannedUntil` window).
+    `durationHours`, area/type by id or `areaName`/`activityTypeName`, an
+    optional `plannedDate` or `plannedDate`+`plannedUntil` window, and optional
+    `steps`).
   - `update` — edit one by `id`. `plannedDate: null` moves it back to Someday
     (clearing any window end); `plannedUntil: null` collapses the window to its
     single day; a set `plannedUntil` must fall on or after the planned day. On
@@ -298,6 +370,15 @@ relay it, don't retry.
     sleep/non-blocking, reviewed, or not-owned event is refused with a reason
     (edit it on the dial instead). Parking a calendar-linked event removes its
     calendar copy but remembers the calendar, so re-scheduling republishes there.
+- **Microtasks on a parked block.** `capture` and `update` both take `steps`
+  (≤50 plain strings, ≤200 chars each). It **replaces the whole list**, so send
+  every step you want kept; `[]` clears them. Template-only — a parked block has
+  no occurrence, so there's nothing to tick off until it's scheduled onto the
+  dial, and the read echoes plain text rather than the placed block's
+  `checklist` items (§Microtasks). The steps themselves survive the park ↔ place
+  round-trip, so breaking a parked intention down now isn't wasted work — but
+  **ticks don't**: parking a half-done block returns every step un-ticked, since
+  the tray has no occurrence to hold a done-set.
 - `schedule` and `park` are **inverses**: to undo a placement, park it; to undo
   a park, schedule it. Only `remove` returns an `undoToken` — surface that one;
   offer the inverse op to revert a placement or park.
@@ -327,7 +408,9 @@ Treat the tray as a first-class part of the plan, not a side list:
 - **Review sweeps leftovers back.** When a planned block was skipped or didn't
   finish, offer to `park` it for later instead of dropping it — the intention
   survives without pretending it happened. (Reflection records what *did*
-  happen; parking carries forward what still needs to.)
+  happen; parking carries forward what still needs to.) Order matters: `park`
+  refuses an event that already carries a reflect status, so park it *before*
+  marking the day, or `capture` a fresh block afterwards instead.
 
 ## Workflow: schedule a block
 
@@ -370,15 +453,24 @@ Treat the tray as a first-class part of the plan, not a side list:
 
 1. `mcp__reassign__get_schedule` for the range (`from`+`to`, or `compact:true`
    for wide spans). For a day already reviewed, read its `review` block
-   (adherence) and each event's `reflect` block alongside the plan.
+   (adherence) and each event's `reflect` block alongside the plan. A block's
+   `checklist` block adds the finer grain — `done`/`total` shows how far into it
+   the user actually got, which a bare `kept`/`skipped` can't (§Microtasks).
 2. Summarize where time went by area; name one win and one concrete adjustment.
+   Partly-done blocks are the most useful material here: "you got 3 of 5 steps
+   into the proposal" beats "you skipped it".
 3. If the user wants to **record** how a past day went (not just read it), mark
    its events with `write_events`' `reflect` op, then freeze it with
    `mcp__reassign__review_day {date, action:"confirm"}` — see §Reflection and
    references/reflection.md. Surface the `undoToken`.
-4. For work that was skipped or didn't finish, offer to `park` it back to the
-   backlog (`manage_backlog`) so the intention carries forward instead of being
-   dropped (§Backlog).
+4. For work that was skipped or didn't finish, carry the intention forward
+   instead of dropping it (§Backlog) — but mind the order: **`park` only accepts
+   an un-marked block.** Once an event carries a reflect status it's refused
+   ("Reviewed events can't be parked"), so park *before* marking, or use
+   `capture` after. `capture` always works: it makes a new parked block and never
+   touches the lived record. When only *part* of a block got done, `capture` the
+   **unticked steps** as that block's `steps` — what's left survives without
+   pretending the finished half didn't happen.
 
 ## Workflow: reshuffle / bulk edits
 
@@ -408,11 +500,17 @@ Treat the tray as a first-class part of the plan, not a side list:
 - Record how a **past** event went with the `reflect` op
   (`kept`/`skipped`/`changed`/`added` + optional actual times); freeze the day
   with `mcp__reassign__review_day` (§Reflection).
+- Break a block into steps, or tick them off, with the `checklist` op — `items`
+  to set the list (declarative, replaces it whole) or `check`/`uncheck` to mark
+  them done for one occurrence, never both in the same op (§Microtasks).
 
 ## What not to do
 
 - Never pack qualitatively different blocks back-to-back without a buffer.
 - Never schedule deep work in a known trough without flagging it.
+- Never tick a microtask off unless the user said it happened, and never send an
+  `items` edit built from memory — read the current list first, or you'll delete
+  the steps you forgot to echo.
 - Never give clinical advice — no medication timing, dosing, sleep medication,
   or diagnostic claims. These are widely used lifestyle strategies, not
   treatment, and not a substitute for evaluation by a qualified clinician.

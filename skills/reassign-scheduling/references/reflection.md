@@ -27,6 +27,14 @@ Both ride the normal read tools — no separate fetch.
   forms and `actualDurationMinutes`). Cross-midnight actuals read past `24:00`
   like planned times, and the spill onto the following morning is mapped for you.
   An untouched event carries no `reflect` key.
+- **Per-event `checklist` block** — not a reflection field, but part of the same
+  story. A block broken into microtasks carries `{items:[{id,text,done}], done,
+  total}` with the **this-occurrence** done state (see SKILL.md §Microtasks), so
+  a partly-worked block shows how far the user actually got. It is written
+  independently of the reflect mark: a `kept` block may show zero ticked steps,
+  and a fully-ticked block may carry no `reflect` state at all. Report both as
+  they read; never infer one from the other, and never back-fill a mark from the
+  step count.
 - **`show_day`** appends a one-line adherence gloss for a reviewed day, so the
   rendered dial reads the same story.
 
@@ -120,16 +128,30 @@ it.
 ## Putting it together — record a day
 
 1. `get_schedule` for the day (a past date). Read the plan, and any existing
-   `review`/`reflect` blocks if it was partly reviewed before.
+   `review`/`reflect` blocks if it was partly reviewed before — plus each block's
+   `checklist`, which often already answers "how far did that get?" before you
+   ask.
 2. For each event the user reports on, send a `write_events` `reflect` op with
    the right `status` (+ actual times for `changed`/`added`). Batch them in one
-   call.
+   call — one op per event, since two ops on the same id in a batch are refused.
+   If the user mentions steps they finished but never ticked, send those
+   `checklist` `check` ops as a **separate call** for the same reason (and on a
+   recurring event, target that single occurrence). Tick before you mark: it
+   keeps the option of parking the block open, which a reflect status closes.
 3. `mcp__reassign__review_day { date, action: "confirm" }` to freeze the day's
    adherence snapshot.
 4. Surface the `undoToken`. To summarize, read the now-present `review` block
    (adherence by area/type) and name one win + one concrete adjustment for the
    days ahead — turn the adjustment into a real edit when you can (see
    references/workflows.md §Weekly review).
+5. **Carry the leftovers.** For a block that was skipped, or whose checklist is
+   only partly ticked, `capture` its **unticked steps** as a new parked block's
+   `steps` (SKILL.md §Backlog). Use `capture`, not `park`: by this point the
+   block carries a reflect status, and `park` refuses a reviewed event — so
+   parking the whole block is only an option *before* step 2. Backlog is Pro, so
+   relay an upgrade message rather than retrying. Reflection records what *did*
+   happen; the capture carries the remainder forward. Don't edit the step
+   template to "clean up" a past day — the finished list is the record.
 
 If the user wants to wipe a day's reflection and start over, that's
 `review_day { date, action: "discard" }`.
