@@ -46,9 +46,21 @@ block, so each milestone has an edge the user can see arriving.
 
 ### Chunking
 A vague event ("do taxes") is a non-starter. Decompose it into the **next
-physical action** and schedule only that: replace one fuzzy block with 2–4
-concrete events via write_events (e.g. "gather W-2s", "fill section 1"). Keep
-the first chunk small enough to start in under five minutes.
+physical action** and schedule only that. Two ways to land it, and the choice
+matters:
+
+- **Microtasks inside the block** — keep the one block and give it an ordered
+  step list via the `checklist` op (SKILL.md §Microtasks). Prefer this when the
+  chunks belong to one sitting: the dial stays readable, the user ticks steps
+  where they're already working, and it's free on any block.
+- **Separate events** — replace one fuzzy block with 2–4 concrete events via
+  write_events (e.g. "gather W-2s", "fill section 1"). Reach for this when the
+  chunks want *different times, days, or energy levels*, since only real events
+  can be placed, moved, and protected independently.
+
+Either way, keep the first chunk small enough to start in under five minutes.
+Don't do both for the same work — a block split into events *and* carrying a
+duplicate step list is two plans competing.
 
 ### Transition buffers
 Never butt qualitatively different blocks against each other. Insert a 5–15 min
