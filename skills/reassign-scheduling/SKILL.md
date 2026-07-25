@@ -173,13 +173,10 @@ belonging to one day. Every rule below follows from that split.
   from the other — report what the `checklist` block actually says.
 - **Parked blocks carry steps too**, as plain text (there's no occurrence to tick
   against until they're placed) — see §Backlog.
-- The user can also have AI break a block down in the app — the `/microtasks`
-  verb in the command bar, or "Microtasks…" in its Day section (a **Pro**
-  feature; it picks a block, optionally takes a free-text instruction like "only
-  40 minutes, focus on the numbers slides", then proposes steps to accept). If
-  they mention it by an older name, `/breakdown`, it's this. You don't need it:
-  proposing steps and writing them with the op above is free — just propose
-  before writing.
+- **Don't send them to the app's AI for this.** Reassign has its own AI breakdown
+  (`/microtasks` in the command bar, formerly `/breakdown`) but it's **Pro**,
+  while the op above is free — so proposing steps and writing them yourself
+  works for every user. Just propose before writing.
 
 ### Planning with microtasks
 
