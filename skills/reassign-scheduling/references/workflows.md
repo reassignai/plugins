@@ -30,7 +30,11 @@ surface it.
 3. Place chunks into peak windows across the days in **one batch**: a single
    `write_events` call with several `create` ops. Atomic by default, so either
    the whole plan lands or nothing does — fix any rejected op and resend rather
-   than leaving a half-placed project.
+   than leaving a half-placed project. A project reaching past a capped plan's
+   horizon (5 days for free, SKILL.md §Plan limits) takes the whole batch down
+   with it: place what fits, and offer to park the rest as parked blocks with
+   planned days — except that backlog is Pro too, so for a free user the honest
+   answer is a shorter horizon, not a workaround.
 4. Buffer between unlike chunks (adhd-methods.md §transition-buffers); inflate
    vague estimates 25–50% before committing.
 5. `show_day` on the first project day so the user can see the plan land;
@@ -38,11 +42,18 @@ surface it.
 
 ## Recurring-block setup
 
+Repeating events are **Pro** (SKILL.md §Plan limits). A free or guest user's
+`recurrence` is refused with `errorCode: "permission"` — offer the block as a
+one-off and relay the upgrade message rather than retrying without the field.
+
 1. `get_schedule` to confirm the slot is genuinely free on the cadence you want.
 2. Create the block with `write_events` `create` plus `recurrence` — a preset
    (`daily`, `weekdays`, `weekly`, `biweekly`, `monthly`, `yearly`) or a raw
-   RRULE (e.g. `"FREQ=WEEKLY;BYDAY=MO,WE,FR"`). Add `recurrenceEnd`
-   (`"YYYY-MM-DD"`, inclusive) for a fixed end, or omit for open-ended.
+   RRULE. The RRULE form is what covers the cadences the presets don't:
+   specific weekdays (`"FREQ=WEEKLY;BYDAY=MO,WE,FR"`) or the nth weekday of a
+   month (`"FREQ=MONTHLY;BYDAY=2TU"` — every second Tuesday of the month). Add
+   `recurrenceEnd` (`"YYYY-MM-DD"`, inclusive) for a fixed end, or omit for
+   open-ended.
 3. Editing one instance of a recurring event? Set `scope`:
    - `this` — only this occurrence (needs the occurrence date),
    - `future` — this and all later occurrences,
@@ -104,7 +115,11 @@ SKILL.md §Backlog.
    day/window, not an invented start time (SKILL.md §Backlog). When the user
    spells a parked intention out in pieces ("call the garage, get a quote, book
    it in"), that's one block with `steps`, not three parked blocks — and the
-   steps ride along when it's later placed.
+   steps ride along when it's later placed. Capturing something the user found
+   on a **page** is the one case that takes `sourceUrl` and `enrich` (SKILL.md
+   §Captured from a page): pass the address so they get a clickable source chip,
+   and let `enrich` name it, since a paragraph of page text is not an intention.
+   Neither field belongs on a task they simply told you about.
 2. **Plan the day from the tray.** On "plan my day" / filling free slots: one
    `get_schedule` read with `includeBacklog:true` — every item carries its
    planned day/window and `overdue` flag. Match parked blocks to `freeSlots` —

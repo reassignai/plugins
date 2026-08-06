@@ -19,7 +19,7 @@ description: >-
 license: Apache-2.0
 allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
 metadata:
-  version: "1.8.0"
+  version: "1.9.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -48,6 +48,40 @@ advice you recite.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
   connected, the `integrations` context and per-event `source`/`readOnly` flags
   (see references/calendars.md). Never edit or delete a `readOnly` event.
+
+## Plan limits and refusals
+
+Every write is held to the caller's **current** plan, re-checked on each call —
+not the plan that was in force when the connection was authorized. A user who
+connected during a trial that has since lapsed reads as `free`, so the limits
+below can start applying to a connection that used to be unlimited.
+
+| | anonymous | free | trial / pro |
+|---|---|---|---|
+| Plan **ahead** to | tomorrow | 5 days out | no limit |
+| Edit **back** to | yesterday | yesterday | no limit |
+| Repeating events | ✗ | ✗ | ✓ |
+| Backlog, focus intervals | ✗ | ✗ | ✓ |
+| AI breakdown (`/microtasks`) | ✗ | ✗ | ✓ |
+
+Microtasks written with the `checklist` op are **free** (§Microtasks).
+
+- The window is checked on the day the op **lands on**, not the day it names —
+  a `shift` large enough to walk an event past the horizon is refused too.
+  `delete`/`clear` are exempt (removing time is always allowed, so nothing gets
+  stranded beyond a horizon), as is `checklist`. `reflect` is exempt from *this*
+  window but carries a stricter past-day rule of its own (§Reflection).
+- **Repeating is Pro.** `recurrence` and `recurrenceEnd` on a `create`/`update`,
+  and `recurrence` on `schedule`, are all refused for a free or guest user —
+  offer the block as a one-off instead. `recurrence:"none"` (stop repeating) is
+  always allowed. Editing a series they already own — rename, re-area, re-time —
+  is fine; only *asking for the repeat* is gated.
+- **Read the code, not the sentence.** Every refusal carries a machine-readable
+  `errorCode` — per-op inside a batch result, and once for a whole rejected
+  call. Branch on it instead of reading the prose, and note that only
+  `permission` means "upgrade": `scope` needs a re-connect and `read_only` means
+  the event lives on someone else's calendar. Offering Pro to either is wrong.
+  Don't retry any of the three. Full vocabulary: references/limits.md.
 
 ## Event kinds
 
@@ -111,13 +145,20 @@ the rhythm on the one block instead.
   knowing: for up to 30 minutes past a block's end, focus mode offers an
   "As planned" verb that records `kept` — so a `reflect` state can appear
   without the user having gone through a review flow.)
-- **A running block can re-time itself.** From focus mode the user can finish
-  early, add or drop an interval (which grows or shrinks the block by one
-  focus + break cycle at the same cadence), or extend by 15 minutes when they
-  run over. The cadence never changes, but the block's `end` and
-  `plannedIntervals` do. Re-read the day with `get_schedule` before scheduling
-  around a block the user is actively working through. (These re-time verbs are
-  withheld on a calendar-locked block, so a synced event won't drift this way.)
+- **A running block can re-time itself — and the rest of the day.** From focus
+  mode the user can finish early, add or drop an interval (which grows or shrinks
+  the block by one focus + break cycle at the same cadence), or extend by 15
+  minutes when they run over. The cadence never changes, but the block's `end`
+  and `plannedIntervals` do. When the next block sits too close for the full 15
+  minutes, overtime offers a second verb — **push the rest later** — which takes
+  the whole extension and slides *every later event on that day* along with it,
+  so the day keeps its shape instead of losing the gap. Nothing reorganizes on
+  its own; the plain extend stays the default. Re-read the day with
+  `get_schedule` before scheduling around a block the user is actively working
+  through — the times you last read may have moved without any tool call of
+  yours. (These re-time verbs are withheld on a calendar-locked block, so a
+  synced event won't drift this way, and the push is withheld when the block it
+  would collide with is read-only or an all-day band.)
 - Focus intervals and focus mode are a **Pro** feature — surface that when a
   user asks for them, and relay any upgrade prompt rather than retrying. See
   adhd-methods.md §Pomodoro for when to reach for them.
@@ -247,8 +288,10 @@ references/reflection.md for the full detail):
   removes events added only as part of the reflection. Both return an
   `undoToken`.
 - Only a **past** day can be reviewed, and only within the user's editable-past
-  window (yesterday for free/guest, deeper history on Pro); a mark or confirm
-  outside it is rejected with an upgrade message — relay it, don't retry.
+  window (yesterday for free/guest, deeper history on Pro). Relay either
+  rejection, don't retry — but they differ: today or a future day is
+  `validation` (no plan lifts it, so don't offer an upgrade), while a past day
+  beyond a capped plan's reach is `permission`, the real upgrade prompt.
 
 ## Weather
 
@@ -341,8 +384,9 @@ relay it, don't retry.
   that, not an error. Pass `includeBacklog:true` for the items (top of tray
   first, capped) or `backlogQuery` to find one by name; each item carries its
   `plannedDate`/`plannedUntil` when set, plus `overdue: true` once the window's
-  end has slipped past today, and `steps` (plain strings) when it carries
-  microtasks. `backlogPlannedOn` (ISO date) narrows to the
+  end has slipped past today, `steps` (plain strings) when it carries
+  microtasks, and `sourceUrl` when it was captured off a page.
+  `backlogPlannedOn` (ISO date) narrows to the
   blocks whose planned day or window covers that day; it implies
   `includeBacklog` and composes with `backlogQuery`. An **overdue block never
   matches it** (its window has passed) — overdue items surface only on the
@@ -352,15 +396,16 @@ relay it, don't retry.
   default — pass `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
     `durationHours`, area/type by id or `areaName`/`activityTypeName`, an
-    optional `plannedDate` or `plannedDate`+`plannedUntil` window, and optional
-    `steps`).
+    optional `plannedDate` or `plannedDate`+`plannedUntil` window, optional
+    `steps`, and optional `sourceUrl`/`enrich` — see §Captured from a page).
   - `update` — edit one by `id`. `plannedDate: null` moves it back to Someday
     (clearing any window end); `plannedUntil: null` collapses the window to its
     single day; a set `plannedUntil` must fall on or after the planned day. On
     a **task-app-linked** block, `plannedDate`/`plannedUntil` are
     provider-owned (mirrored from Todoist — see references/calendars.md); an
     update touching either is refused — tell the user to change the date in
-    the task app.
+    the task app. `sourceUrl` is settable here too, and `sourceUrl: null`
+    clears a stale link off a block the user is keeping.
   - `remove` — delete one by `id` (reversible → `undoToken`).
   - `schedule` — **place** a parked block on the dial at `date`+`start` (its
     `durationHours` sizes it; pass `recurrence` to repeat) and lift it off the
@@ -382,6 +427,25 @@ relay it, don't retry.
 - `schedule` and `park` are **inverses**: to undo a placement, park it; to undo
   a park, schedule it. Only `remove` returns an `undoToken` — surface that one;
   offer the inverse op to revert a placement or park.
+
+### Captured from a page
+
+A parked block can record **where it came from**. Both fields are for material
+grabbed off a real page — not for an intention the user typed or dictated.
+
+- **`sourceUrl`** — the http(s) address the block was captured from, on
+  `capture` and `update`. It's provenance, not a note: the user sees a source
+  chip they can click, and Reassign never parses it. `get_schedule` echoes it
+  back. Only ever point it at the page the text actually came from — anything
+  else is a link the user clicks expecting one thing and gets another.
+- **`enrich: true`** on a `capture` — Reassign's own AI cleans the capture up
+  before it's saved: a better `name`, an estimated `durationHours`, and any
+  `steps` the captured text spells out. **Raw captures only.** It may *rename*
+  the block, and a name the user chose has to stand, so never set it on
+  something they said. Fields you send win; only the name can be replaced.
+  It never fails a capture — no AI entitlement, a model outage, a
+  timeout, or more than ten enriched captures in one batch all just land the
+  block exactly as you sent it, so don't retry a capture that came back plain.
 
 ### Planning with backlog
 
@@ -426,6 +490,10 @@ Treat the tray as a first-class part of the plan, not a side list:
    `areaName`/`activityTypeName`), add `notes`, make it repeat with `recurrence`,
    and pass a stable `request_id` so a retry doesn't double-book. One clean fit →
    created with an `undoToken`; conflicts → ranked `options` plus a `commitToken`.
+   Within a minute, an identical request replays the first result instead of
+   booking twice — but it's matched on the fields **as sent**, so `"90m"` and
+   `"1h30"` are two different requests, as are `areaName` and `areaId` for one
+   area. Resend a failed call verbatim; don't reword it.
 3. Present 2–3 options, then `mcp__reassign__confirm_schedule` with `items[]` =
    `{token, choice}` (0-based; omit `choice` for the best fit). It re-checks
    conflicts before committing. When the user is looking at their dial, pass
@@ -478,7 +546,8 @@ Treat the tray as a first-class part of the plan, not a side list:
   atomic by default — pass `partial:true` to allow per-op failures). Reference
   areas/types by id, or by `areaName`/`activityTypeName`. For recurring events
   set `scope` to `all`/`future`/`this` — `future`/`this` also need an
-  `occurrenceDate`. Changing the repeat itself (`recurrence`/`recurrenceEnd`) is
+  `occurrenceDate`. Asking for a repeat at all is **Pro** (§Plan limits), and
+  changing the repeat itself (`recurrence`/`recurrenceEnd`) is
   always series-level: target the series master — pointing it at a single changed
   occurrence is refused with the master's id to use instead — and don't ride it on
   a `scope:"this"` update (also refused). Split a one-occurrence detail edit and a
@@ -522,7 +591,8 @@ Start with implementation intentions and externalized time. See
 references/workflows.md for extended multi-step scenarios,
 references/taxonomy.md for how areas and activity types map to the dial,
 references/calendars.md for connected-calendar sync, event kinds, and mirroring,
-and references/reflection.md for reviewing how a past day actually went.
+references/reflection.md for reviewing how a past day actually went, and
+references/limits.md for what each plan allows and how to read a refusal.
 
 ## Feedback
 
