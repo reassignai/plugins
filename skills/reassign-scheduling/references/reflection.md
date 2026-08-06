@@ -120,10 +120,15 @@ the past:
 - **Pro** — deeper history.
 
 A `reflect` mark **or** a `review_day` confirm/discard on a day **outside** that
-window — including today or a future day, which simply aren't reviewable yet — is
-**rejected with a clear message** (often an upgrade prompt for the deeper-past
-case). Relay that message to the user; don't retry the call or try to work around
-it.
+window is **rejected with a clear message**. The two rejections are different
+things, and the `errorCode` says which (SKILL.md §Plan limits):
+
+- Today or a future day → `validation`. Nobody can reflect on a day that isn't
+  done yet; no plan lifts this, so don't mention upgrading.
+- A past day beyond a capped plan's reach → `permission`. This one *is* the
+  upgrade prompt.
+
+Relay the message either way; don't retry the call or try to work around it.
 
 ## Putting it together — record a day
 
