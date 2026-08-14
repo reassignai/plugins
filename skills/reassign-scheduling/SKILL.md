@@ -19,7 +19,7 @@ description: >-
 license: Apache-2.0
 allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
 metadata:
-  version: "1.9.0"
+  version: "1.9.1"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -352,6 +352,12 @@ they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
   **dial layer** (off by default): `show_day` paints it only when the user has
   enabled the energy layer, but `get_energy` always reads it (calling it is
   explicit intent).
+- **The in-app curve can differ, by design.** A user can fold a menstrual-cycle
+  rhythm into the energy layer in the app; that term is deliberately absent
+  from `get_energy` — cycle data is health data that never leaves the app, on
+  any AI surface. So the curve you read may sit slightly off the dial an
+  opted-in user sees. Treat the gap as intended, not an error, and never ask
+  for, infer, or record cycle data through any tool.
 
 ### Planning with energy
 
