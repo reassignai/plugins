@@ -9,7 +9,7 @@ over that model.
 
 The rule of thumb: **read** the reflection blocks to talk about a day,
 **mark** events to record how they went, then **confirm** the day to freeze it.
-Only a past day is reviewable, and only within the user's editable window.
+Only a past day can be confirmed or discarded with `review_day`.
 
 ## Reading: `review` and `reflect` blocks
 
@@ -111,24 +111,12 @@ mcp__reassign__review_day { date, action: "confirm" | "discard" }
   `discard` is destructive, confirm intent before discarding a day the user has
   already reviewed.
 
-## The editable-past window (entitlement)
+## Past-day review
 
-Reflection is bounded by the user's plan, the same window that governs editing
-the past:
-
-- **Free / guest** — yesterday only.
-- **Pro** — deeper history.
-
-A `reflect` mark **or** a `review_day` confirm/discard on a day **outside** that
-window is **rejected with a clear message**. The two rejections are different
-things, and the `errorCode` says which (SKILL.md §Plan limits):
-
-- Today or a future day → `validation`. Nobody can reflect on a day that isn't
-  done yet; no plan lifts this, so don't mention upgrading.
-- A past day beyond a capped plan's reach → `permission`. This one *is* the
-  upgrade prompt.
-
-Relay the message either way; don't retry the call or try to work around it.
+`review_day` confirm/discard rejects today and future dates with `validation`.
+Choose a past date; an upgrade does not change that rule. Callers with active
+trial/subscription access have no plan-based historical edit limit. Access
+failures happen at the MCP gate (see references/limits.md).
 
 ## Putting it together — record a day
 
@@ -153,9 +141,8 @@ Relay the message either way; don't retry the call or try to work around it.
    only partly ticked, `capture` its **unticked steps** as a new parked block's
    `steps` (SKILL.md §Backlog). Use `capture`, not `park`: by this point the
    block carries a reflect status, and `park` refuses a reviewed event — so
-   parking the whole block is only an option *before* step 2. Backlog is Pro, so
-   relay an upgrade message rather than retrying. Reflection records what *did*
-   happen; the capture carries the remainder forward. Don't edit the step
+   parking the whole block is only an option *before* step 2. Reflection
+   records what *did* happen; the capture carries the remainder forward. Don't edit the step
    template to "clean up" a past day — the finished list is the record.
 
 If the user wants to wipe a day's reflection and start over, that's
