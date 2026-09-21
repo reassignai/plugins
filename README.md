@@ -32,11 +32,12 @@ plugins/                                  ← repo root = plugin root
 │       ├── SKILL.md
 │       └── references/
 │           ├── adhd-methods.md
+│           ├── focus.md             ← focus intervals, live pauses, and saved rhythms
 │           ├── workflows.md
 │           ├── taxonomy.md
 │           ├── calendars.md          ← connected-calendar sync, event kinds, mirroring
 │           ├── reflection.md         ← reviewing a past day: marks + adherence
-│           └── limits.md             ← what each plan allows; reading a refusal code
+│           └── limits.md             ← subscription access, refusal codes, and retries
 ├── server.json                           ← Official MCP Registry entry
 ├── package.json                          ← npm client shim
 ├── bin/reassign-mcp.js

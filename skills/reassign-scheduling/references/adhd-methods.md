@@ -1,150 +1,124 @@
-# ADHD-friendly scheduling methods
+# ADHD-friendly organization and scheduling
 
-Apply these as **actions on the dial**, not advice you recite. Each method below
-names the concrete edit you make through the Reassign tools — an event, a buffer,
-a note, a recurring block — not a paragraph you read aloud. Reach for the
-strong-evidence tier first; treat the weaker tiers as situational nudges.
+Use these as practical options tailored to the person, not a prescribed system
+or a claim that every person with ADHD needs the same routine. Apply the method
+that removes the current obstacle; do not recite this catalog. User preferences,
+fixed commitments, and stated capacity take precedence over defaults.
 
-## Contents
+## Implementation intentions
 
-- [Strong evidence](#strong-evidence)
-  - [Implementation intentions](#implementation-intentions)
-  - [Externalized time / time-blindness](#externalized-time--time-blindness)
-  - [Chunking](#chunking)
-  - [Transition buffers](#transition-buffers)
-  - [Zeigarnik capture + shutdown](#zeigarnik-capture--shutdown)
-- [Moderate evidence](#moderate-evidence)
-  - [Time-blocking vs timeboxing](#time-blocking-vs-timeboxing)
-  - [Chronotype / energy placement](#chronotype--energy-placement)
-  - [Pomodoro](#pomodoro)
-  - [Habit stacking](#habit-stacking)
-  - [Eisenhower / Q2 protection](#eisenhower--q2-protection)
-- [Weak but useful](#weak-but-useful)
-  - [Body doubling](#body-doubling)
-  - [Task initiation](#task-initiation)
-  - [Two-minute rule](#two-minute-rule)
-  - [1-3-5 / eat the frog](#1-3-5--eat-the-frog)
-- [Clinical guardrail](#clinical-guardrail)
+Make the start concrete in the event's `notes`: “After the standup, open the
+proposal and draft three bullets.” Add a fallback only when useful: “If stuck,
+write the question I need answered.” Keep notes short and actionable.
 
----
+## Externalized time / time-blindness
 
-## Strong evidence
+Make **now, next, and the stopping point** visible. Offer `show_day` when seeing
+the plan helps. Name the next block's start and what “done for this sitting”
+means. Keep related steps in one checklist; split into events only when they
+need different times or contexts. Do not promise reminders or background timers
+that the tools cannot provide; use the app's focus controls when requested.
 
-### Implementation intentions
-If-then plans beat vague goals. Encode the trigger **in the event itself**: put
-an "if X, then Y" line in the event `notes` (write_events `notes`, ≤2000 chars).
-Example — a "Write report" block gets `notes: "If I stall, then open last
-week's outline and edit one section."` The plan rides on the dial, not in your
-chat reply.
+## Chunking
 
-### Externalized time / time-blindness
-🩺 ADHD time-blindness means elapsed and remaining time are hard to feel. The
-dial *is* the intervention — it makes the day spatial. Reinforce it: render with
-`show_day` so the user can see now-vs-next at a glance, and auto-chain dependent
-steps as separate adjacent events (write_events `ops`) instead of one open-ended
-block, so each milestone has an edge the user can see arriving.
+Turn “do taxes” into an observable next action such as “find last year's return.”
+A project needs a next action, not a complete breakdown before starting.
 
-### Chunking
-A vague event ("do taxes") is a non-starter. Decompose it into the **next
-physical action** and schedule only that. Two ways to land it, and the choice
-matters:
+- Steps for one sitting belong in the event's `checklist`; read and preserve
+  existing item IDs when replacing that list.
+- Steps needing different days or contexts become separate events or parked
+  blocks. Put the shared project name in their names/notes; reuse existing
+  taxonomy instead of creating a new category for every task.
+- Choose a first step that can begin in under five minutes. Keep only a few
+  useful steps visible. Do not duplicate the same work as both checklist and
+  independent scheduled events.
 
-- **Microtasks inside the block** — keep the one block and give it an ordered
-  step list via the `checklist` op (SKILL.md §Microtasks). Prefer this when the
-  chunks belong to one sitting: the dial stays readable, the user ticks steps
-  where they're already working, and it's free on any block.
-- **Separate events** — replace one fuzzy block with 2–4 concrete events via
-  write_events (e.g. "gather W-2s", "fill section 1"). Reach for this when the
-  chunks want *different times, days, or energy levels*, since only real events
-  can be placed, moved, and protected independently.
+## Transition buffers
 
-Either way, keep the first chunk small enough to start in under five minutes.
-Don't do both for the same work — a block split into events *and* carrying a
-duplicate step list is two plans competing.
+Allow travel, setup, food, and a change of context between unlike activities.
+A 5–15 minute buffer can be a starting suggestion, not a universal rule; travel
+needs its actual time. Use blocking events when that time must be protected.
+Leave some unallocated room too. For uncertain estimates, state the assumption
+and suggest a margin; do not silently inflate a duration the user specified.
 
-### Transition buffers
-Never butt qualitatively different blocks against each other. Insert a 5–15 min
-buffer event between unlike activities (meeting → deep work, deep work → errand)
-and **inflate vague estimates 25–50%** before scheduling. Buffers are real
-events on the dial, not slack you hope exists. This is the §buffers default the
-SKILL.md references for the schedule-a-block workflow.
+## Capture + shutdown
 
-### Zeigarnik capture + shutdown
-Open loops nag (the Zeigarnik effect). Give them a home: a single "parking lot"
-note (event `notes`, or a short standing capture block) where interruptions go
-instead of derailing the current block. Anchor the day with a recurring
-**shutdown** event and a weekly **review** event (write_events `recurrence`
-`daily` / `weekly`) so loops get closed on a schedule, not whenever anxiety
-spikes.
+Put interruptions into the Inbox with `manage_backlog` capture when authorized,
+then return to the active task. Avoid creating a second parking-lot system in
+notes that duplicates the Inbox. Before capturing, check for an existing item
+when duplication is plausible.
 
-## Moderate evidence
+At shutdown, preserve the next step of unfinished work, choose tomorrow's first
+intention, and stop planning. Add a short recurring shutdown/review block only
+when wanted; check whether one already exists.
 
-### Time-blocking vs timeboxing
-*Time-blocking* assigns a category to a span; *timeboxing* caps a task to a fixed
-window and stops when time's up. Use timeboxing for anxiety-inducing or
-open-ended tasks — schedule a hard-edged block and let the edge, not completion,
-end it. Both are just events; the difference is whether you let the block expand.
+## Time-blocking vs timeboxing
 
-### Chronotype / energy placement
-🩺 Place demanding/deep work in the user's **peak** window and admin/shallow
-work in the **trough**. Two sources, in order of preference: when the user has
-logged sleep, `get_energy` returns their actual forecast peak/dip windows for
-the day (see SKILL.md §Energy) — use those; otherwise fall back to the
-chronotype/energy hints in `get_schedule`'s `userPreferences` plus the day's
-load. Prefer ~90-minute deep blocks. Never schedule deep work into a known
-trough without flagging it (a SKILL.md "what not to do" rule).
+Time-blocking reserves capacity. Timeboxing defines a stopping point for work
+that could expand indefinitely: “Spend 20 minutes comparing two options.” Name
+an achievable outcome in notes. Do not extend a block automatically because the
+whole task remains unfinished; check what follows and whether it still matters.
 
-### Pomodoro
-For a long focus block, give it a focus/break rhythm rather than scheduling one
-unbroken slab. Reassign does this natively — set `focusIntervals: {focusMin, breakMin}`
-on the one **blocking** block (e.g. `{focusMin:25, breakMin:5}` or
-`{focusMin:50, breakMin:10}`) instead of creating separate buffer events. The
-block stays a single event and the breaks are derived from its length; see
-SKILL.md §Focus intervals for the full contract (blocking-only, `null` to clear,
-the `plannedIntervals`/`completedIntervals` read fields). Useful for task
-initiation and for people who lose time inside long blocks. When the user wants
-to *start* — not plan — send them to focus mode (`/focus`), which runs any
-blocking block, rhythm or not; a rhythm just gives the run its interval
-structure.
+## Chronotype / energy placement
 
-### Habit stacking
-Anchor a new behavior to an existing fixed event ("after morning standup →
-10-min inbox triage"). Schedule the new block immediately adjacent to the stable
-anchor so the anchor cues it.
+Use stated energy and capacity first. If helpful, `get_energy` supplies forecast
+peak/dip windows; treat them as planning hints, not a diagnosis or certainty.
+Fit demanding work into a suitable window and batch lighter admin where useful.
+Do not impose a 90-minute block on someone who wants a short start. Flag a
+mismatch and offer an alternative while respecting deadlines and user choice.
 
-### Eisenhower / Q2 protection
-Important-not-urgent (Q2) work is what slips. Convert it into **protected**
-recurring blocks (write_events `recurrence`) so it claims dial space before
-urgent-but-trivial work floods in.
+## Pomodoro
 
-## Weak but useful
+Offer `focusIntervals:{focusMin, breakMin}` on one blocking event when structure
+would help; use the preferred cadence rather than assuming 25/5 suits everyone.
+Continuous focus is also valid. Live pauses add banked breaks; use the server's
+interval counts rather than the total wall-clock span. See focus.md for the
+write contract and `/focus` controls. A rhythm should make starting easier,
+not create another completion quota.
 
-### Body doubling
-Working alongside someone (real or virtual) aids initiation. Schedule a "body
-double / co-work" block aligned with a focus task, or pair it with a recurring
-co-working session the user already attends.
+## Habit stacking
 
-### Task initiation
-The "just 5 minutes" start. When a task feels immovable, schedule a tiny 5-min
-opener block separate from the full task — the goal is only to begin.
+Attach a small action to an existing reliable cue: “After lunch, review the
+Inbox for five minutes.” Use notes or a nearby block. Avoid building a long
+chain where one missed step invalidates the rest of the day.
 
-### Two-minute rule
-If it takes under two minutes, batch such items into a single short admin block;
-**never** let them interrupt a deep-work block (that defeats the protection the
-buffer bought).
+## Eisenhower / Q2 protection
 
-### 1-3-5 / eat the frog
-Cap the day's commitments (one big, three medium, five small) and schedule the
-hardest/most-avoided task ("the frog") first in the peak window so it can't be
-displaced. Keep the list on the dial, not in your head.
+Distinguish fixed deadlines, meaningful progress, and optional work. Protect a
+small block for important non-urgent work if capacity allows. Do not require a
+four-quadrant classification of every Inbox item before acting. Dependencies
+and real consequences matter more than an overdue badge.
 
----
+## Body doubling
 
-## Clinical guardrail
+If the user finds co-working helpful, align the work block with an existing
+session or put joining details in notes. Do not create an overlapping duplicate
+block or imply that another person has agreed to attend.
 
-Items marked 🩺 touch areas people often medicalize. Hold this line verbatim:
+## Task initiation
 
-> These are widely used lifestyle strategies, not clinical advice, and not a
-> substitute for evaluation or treatment by a qualified clinician. Reassign will
-> not recommend medication timing, dosing, sleep medication, or make diagnostic
-> claims.
+Shrink the entry step: “Open the draft and write a rough heading.” Put it first
+in the existing checklist. Offer a separate five-minute starter only if it
+helps the user choose a time to begin; do not double-book it over the full task.
+Give permission to reassess scope after the start, without claiming progress
+or ticking steps the user has not reported.
+
+## Two-minute rule
+
+Capture small distractions during focused work, then group compatible tasks
+into a short admin block. A quick task is not automatically more important
+than the current one. Do not turn every short task into a separate calendar event.
+
+## A manageable day / eat the frog
+
+Start with one meaningful outcome and a small optional list sized to the day's
+capacity. “One big, three medium, five small” is an optional ceiling, never a
+quota. If doing the hardest task first is useful, protect a suitable slot;
+if it prevents starting, choose a smaller entry action instead. Preserve room
+for care, rest, and unexpected work.
+
+## Scope
+
+Support organization and user-chosen routines. Do not diagnose, prescribe
+medication or sleep treatment, or present these strategies as clinical care.
+Do not assume a diagnosis from a request for ADHD-friendly planning.

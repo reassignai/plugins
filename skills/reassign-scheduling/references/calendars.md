@@ -54,14 +54,13 @@ to both: it decides whether an event *occupies time*.
 
 ## The `integrations` context
 
-`get_schedule` includes an `integrations` object **only when a calendar is
-connected** (a dial-only user's payload stays lean — its absence means "no
-calendar linked"). Shape:
+`get_schedule` includes `integrations` when the account has source records,
+including disconnected sources. Its absence means no sources are configured;
+check each source's `status` before describing sync as active. Shape:
 
 - `aiClassify` (bool) — whether the AI classifier runs over imported events.
-  When off, it's raw sync: events mirror the provider's busy flag and nothing is
-  AI-excluded, but per-calendar `defaultArea`/`defaultType`/`defaultKind` still
-  apply.
+  When off, AI exclusion/classification does not run; provider facts, calendar
+  defaults, and fixed kind policies still affect the import.
 - `aiRules` (string, optional) — the compiled "AI memory layer": the user's raw
   guidance (account-wide context + every per-calendar instruction) already
   compiled into one contradiction-free ruleset that the classifier reads. Absent
@@ -73,14 +72,28 @@ calendar linked"). Shape:
   (`"connected"` is the only one that syncs; also `disconnected`/`revoked`/
   `error`), and `calendars[]`.
 - Each calendar: `id`, `name`, `writable` (can we push here), and the
-  classification fallbacks used when the AI is unsure — `defaultKind`,
+  classification defaults — `defaultKind`,
   `defaultArea`/`defaultType` (referencing the top-level taxonomy), and the
   calendar's own `timeZone` (a fallback when the user has no selected zone).
 
-Use it to **explain**, not to micro-manage: why an event imported as
-non-blocking (its calendar's `defaultKind`, or the classifier), where a new
-event will sync (`defaultSyncCalendarId`), or why a source isn't importing
-(`status` ≠ connected).
+Use the visible facts to explain where new events sync (`defaultSyncCalendarId`)
+or why a source is not importing (`status` ≠ connected). A source entry alone
+does not establish that sync is active.
+
+## Import policies
+
+Calendars now support `automatic` and `fixed` kind policies. A fixed policy's
+`defaultKind` wins over automatic classification. All-day events remain
+references regardless of that choice. The app supports bounded, atomic
+reapplication to existing events; do not simulate it by rewriting every event
+from chat or assume a policy change rewrote all historical occurrences.
+
+**MCP does not yet expose the policy or its revision** in `integrations`, and
+there is no MCP tool to change/reapply it. `defaultKind` alone cannot tell you
+whether it is a fallback or enforced policy. State the observed kind and
+available defaults; if the cause matters, direct the user to calendar settings
+in the app. Do not invent `kindPolicy`, per-calendar `instructions`, or account
+`aiContext` fields in the response: the exposed compiled guidance is `aiRules`.
 
 ## Per-event sync fields
 
@@ -89,7 +102,9 @@ On each event in `get_schedule` / `find_event`:
 - `source` — `"reassign"` for a native event, else the provider key
   (`"google"` / `"microsoft"` / `"todoist"`). Omitted when it's native.
 - `calendar` — the linked calendar's name, when the event came from / syncs to
-  one.
+  one. `calendarId` identifies the desired home calendar, including a pending
+  publish; `mirrorCalendarIds` identifies desired mirror destinations. These
+  IDs do not by themselves prove remote delivery has finished.
 - `readOnly: true` — the event is from a calendar the user **doesn't own**.
   **Never edit, move, or delete it** via `write_events`/`delete_events`: the
   provider owns the truth, so the change silently reverts. Surface it as context

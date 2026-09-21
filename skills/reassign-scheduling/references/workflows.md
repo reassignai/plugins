@@ -2,25 +2,79 @@
 
 Multi-step scenarios that go beyond the single-block flows in SKILL.md. Every
 one starts with `mcp__reassign__get_schedule` to anchor `now`, the user's areas
-and activity types, `userPreferences`, and the day's load. All edits flow
-through `write_events` (create/update/move/shift/clear ops, ≤50 per call, atomic
-unless `partial:true`); every removal and most writes return an `undoToken` —
-surface it.
+and activity types, `userPreferences`, and the day's load. Use `write_events` for event edits, `delete_events` for removals, and
+`manage_backlog` for parked intentions (≤50 ops per call, atomic unless
+`partial:true`). Surface returned undo tokens and respect existing authorization.
+
+## A manageable day plan
+
+1. Read today's schedule and the Inbox if relevant, following pagination for a
+   complete sweep. Keep the tool data out of the reply unless it helps a decision.
+2. Protect fixed commitments and essential personal time. Use known priorities;
+   if unclear, ask one question: “What would make today feel handled?” Avoid
+   requiring the user to rank the entire Inbox.
+3. Choose one essential outcome and a small optional list that fits remaining
+   capacity. A planned date is not a hard deadline; verify consequences before
+   promoting every overdue item. Keep blocked work untimed and name what it needs.
+4. Present **Now / Next / Later**: one concrete starting action, the next
+   commitment, and work safely left in the Inbox. Explain any consequential
+   tradeoff. Execute within existing authorization; otherwise get the user's
+   choice before moving commitments or placing proposed work.
+5. Reserve only the work that fits, with transitions and room for interruptions.
+   End with the next start/action and returned undo tokens. Offer the dial if
+   visual orientation would help.
+
+## Inbox triage and project organization
+
+1. Accept a brain dump as-is. Capture without demanding categories or invented
+   dates. Keep the user's wording unless asked to organize or clarify it.
+2. Read existing items before merging or replacing them. For a large Inbox,
+   process pages internally but present a small group at a time. Do not declare
+   a complete triage while `nextBacklogOffset` still points to unread items.
+3. Separate actionable work, ideas for later, and work waiting on someone or
+   something. Use notes for dependencies or a waiting reason; MCP has no
+   project/dependency/status tool. A planned date can represent a follow-up
+   intention, but must not be described as an automatic reminder.
+4. For a project, record the desired outcome and identify its next unblocked
+   action. Keep same-sitting steps in `steps`/`checklist`; use distinct blocks
+   only for work that needs distinct time. Avoid duplicating the project and
+   all its steps as competing bookings. Reuse areas/types by their existing meaning.
+5. Offer keep, clarify, plan, or remove only as needed. Do not prune merely
+   because an item is old. Stop at the requested scope; an organized next action
+   can be enough without redesigning the user's whole system.
+
+## Restart after an interruption or an overrun
+
+1. Re-read the current day: the live focus block may have changed its end.
+   Orient with the current time and the next fixed commitment, without blame.
+2. Preserve what the user says is done. Do not mark a missed block skipped or
+   clear the day merely because its planned time passed.
+3. Offer one small restart and, if needed, one alternative. Protect the next
+   fixed commitment; shrink the remaining scope or park it instead of pushing
+   every later event into the evening. Confirm a tradeoff not already authorized.
+4. For unfinished work, preserve the next action. Park eligible unreviewed
+   one-offs, or capture only the remainder of partly completed/reviewed work.
+   Keep existing completion history; avoid duplicate captures on retries.
+5. Apply the chosen changes, surface undo, and finish with what to do now.
+   A reset is complete when the next step is usable, not when every open item
+   has a new date.
 
 ## Weekly review
 
 1. `get_schedule` with `from`+`to` spanning the past week (add `compact:true` so
    a 7-day pull stays readable).
-2. Summarize where time actually went **by area**, using each day's area/type
-   load. Name one win and one concrete adjustment — not a lecture. Where blocks
+2. Summarize planned time **by area** using area/type load, and actuals from
+   recorded reflection. A planned block alone is not evidence it happened.
+   Name one win and one concrete adjustment. Where blocks
    carry microtasks, their `checklist` `done`/`total` is finer evidence than the
-   reflect state alone — a repeatedly half-finished block is a sizing problem,
-   not a discipline one, and the fix is a shorter block or fewer steps.
+   reflect state alone. A repeatedly half-finished block is a reason to adjust
+   the plan, not evidence of poor discipline. Consider interruptions, unclear scope, or
+   a dependency before suggesting a smaller next step or a different duration.
 3. Turn the adjustment into an edit now: e.g. move a recurring deep-work block
    out of a trough (write_events `move`/`update`), or protect a slipping Q2
    block as recurring (see adhd-methods.md §eisenhower--q2-protection).
 4. Schedule next week's review as a recurring anchor if one doesn't exist
-   (`recurrence: "weekly"`), per the Zeigarnik shutdown pattern.
+   (`recurrence: "weekly"`) if the user wants that routine.
 
 ## Multi-day project chunking
 
@@ -30,21 +84,14 @@ surface it.
 3. Place chunks into peak windows across the days in **one batch**: a single
    `write_events` call with several `create` ops. Atomic by default, so either
    the whole plan lands or nothing does — fix any rejected op and resend rather
-   than leaving a half-placed project. A project reaching past a capped plan's
-   horizon (5 days for free, SKILL.md §Plan limits) takes the whole batch down
-   with it: place what fits, and offer to park the rest as parked blocks with
-   planned days — except that backlog is Pro too, so for a free user the honest
-   answer is a shorter horizon, not a workaround.
-4. Buffer between unlike chunks (adhd-methods.md §transition-buffers); inflate
-   vague estimates 25–50% before committing.
+   than leaving a half-placed project. Park work that does not fit available
+   capacity with a planned day/window instead of cramming it into the dial.
+4. Allow transitions and uncertainty (adhd-methods.md §Transition buffers).
+   Label estimated durations; preserve explicit user constraints.
 5. `show_day` on the first project day so the user can see the plan land;
    surface the `undoToken`.
 
 ## Recurring-block setup
-
-Repeating events are **Pro** (SKILL.md §Plan limits). A free or guest user's
-`recurrence` is refused with `errorCode: "permission"` — offer the block as a
-one-off and relay the upgrade message rather than retrying without the field.
 
 1. `get_schedule` to confirm the slot is genuinely free on the cadence you want.
 2. Create the block with `write_events` `create` plus `recurrence` — a preset
@@ -95,13 +142,16 @@ See references/calendars.md for the full surface. The flow:
    doesn't own — including a mirrored copy); the change reverts. Surface it as
    context only.
 4. To explain an imported event's classification, point at the calendar's
-   `defaultKind`/`defaultArea`/`defaultType`/`instructions` or the account
-   `aiClassify`/`aiContext` in `integrations`. Don't set `syncTo` yourself —
-   it's the dial picker's job (calendars.md §syncTo).
+   `defaultKind`/`defaultArea`/`defaultType` and account `aiClassify`/`aiRules`
+   in `integrations`. Fixed kind policies are not exposed by MCP, so describe
+   the visible facts without claiming a definite cause. Refer to the app
+   calendar settings to inspect/change policy (calendars.md §Import policies).
+   Set `syncTo` only for an explicitly requested destination resolved from
+   the calendar list.
 
 ## Working the backlog (parked blocks)
 
-Backlog is a **Pro feature** (see SKILL.md §Backlog). The tray holds *un-timed*
+The tray holds *un-timed*
 intentions; the write surface is `manage_backlog`, the read path is
 `get_schedule` (`backlogCount` → `includeBacklog:true`/`backlogQuery`/
 `backlogPlannedOn`). A parked block may carry a planned day or window — see
@@ -120,10 +170,12 @@ SKILL.md §Backlog.
    §Captured from a page): pass the address so they get a clickable source chip,
    and let `enrich` name it, since a paragraph of page text is not an intention.
    Neither field belongs on a task they simply told you about.
-2. **Plan the day from the tray.** On "plan my day" / filling free slots: one
-   `get_schedule` read with `includeBacklog:true` — every item carries its
-   planned day/window and `overdue` flag. Match parked blocks to `freeSlots` —
-   planned-for-that-day and `overdue: true` blocks first, then oldest/biggest,
+2. **Plan the day from the tray.** Read `get_schedule` with
+   `includeBacklog:true`; follow `nextBacklogOffset` with the same filters for
+   a complete sweep. Items carry their planned day/window and `overdue` flag.
+   Match parked blocks to `freeSlots` —
+   inspect planned-for-that-day and overdue blocks, then prioritize by actual
+   deadlines, importance, dependencies, and available capacity,
    demanding work into an energy peak, admin into the dip. Propose the
    placements; on yes, place each with a `schedule` op (`id`+`date`+`start`;
    add `recurrence` to repeat). Placing lifts it off the tray; revert one by
@@ -150,8 +202,7 @@ SKILL.md §Backlog.
 ## Breaking a block into microtasks
 
 The user is stuck on a block, or asks what a big one actually involves. See
-SKILL.md §Microtasks for the op contract; microtasks are **free** and work on any
-event kind — only carrying leftovers into the backlog (step 5) hits the Pro gate.
+SKILL.md §Microtasks for the op contract; microtasks work on any event kind.
 
 1. `find_event` or `get_schedule` to resolve the block and — critically — read
    its existing `checklist`. An `items` edit **replaces the whole list**, so
@@ -175,9 +226,7 @@ event kind — only carrying leftovers into the backlog (step 5) hits the Pro ga
    the steps by their exact text.
 5. When the block's day is reviewed, the unticked steps are the leftover
    intention — offer to `capture` them into the backlog (§Working the backlog,
-   step 3) rather than letting them disappear. Backlog is **Pro**, so a free user
-   gets an upgrade message here even though the microtasks themselves were free;
-   relay it and leave the steps on the block.
+   step 3) rather than letting them disappear.
 
 For a **parked** block, the same idea uses `manage_backlog`'s `steps` (plain
 strings, replaces the list) — there's no occurrence to tick against until it's
