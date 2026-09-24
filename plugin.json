@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "reassign",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Plan and review your day on Reassign's circular 24-hour calendar, with ADHD-friendly scheduling methods. Bundles the Reassign scheduling skill and connects to the Reassign MCP.",
   "author": { "name": "Pogled Naprej d.o.o.", "url": "https://reassign.ai" },
   "homepage": "https://reassign.ai",

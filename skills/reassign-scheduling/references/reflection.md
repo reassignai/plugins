@@ -9,27 +9,28 @@ over that model.
 
 The rule of thumb: **read** the reflection blocks to talk about a day,
 **mark** events to record how they went, then **confirm** the day to freeze it.
-Only a past day can be confirmed or discarded with `review_day`.
+Only a past day can be confirmed with `review_day`; `discard` works on any day.
 
 ## Reading: `review` and `reflect` blocks
 
 Both ride the normal read tools — no separate fetch.
 
 - **Per-day `review` block** (on `get_schedule`, one per requested day): present
-  **only once the day has been confirmed**. Carries `reviewed` (true),
-  `reviewedAt`, and `adherence` — how closely actuals matched the plan, rounded,
-  with per-area / per-activity-type breakdowns. It's read off the **frozen**
+  **only once the day has been confirmed**. Carries `reviewedAt` and
+  `adherence`: `event` and `layer` scores (0 to 1), `plannedMinutes`,
+  `unplannedMinutes`, and the `byArea` / `byActivityType` breakdowns (each
+  `{areaId | activityTypeId, adherence, plannedMinutes}`). It's read off the **frozen**
   snapshot written at confirm time, not a live recompute, so it's stable. An
   unreviewed day has no `review` block.
 - **Per-event `reflect` block** (on each event in `get_schedule` / `find_event`):
-  present **only when that event has been touched** by a mark. Carries `state`
-  (the reflect status) and, when recorded, `actualStart` / `actualEnd` (+ hour
-  forms and `actualDurationMinutes`). Cross-midnight actuals read past `24:00`
-  like planned times, and the spill onto the following morning is mapped for you.
+  present **only when that event has been touched** by a mark. Carries `status`
+  and, only on a `changed` event with recorded times, `actualStart` /
+  `actualEnd` (local datetimes; an overnight actual ends on the next day). An
+  `added` event has no actual span: its own `start`/`end` is the actual time.
   An untouched event carries no `reflect` key.
 - **Per-event `checklist` block** — not a reflection field, but part of the same
-  story. A block broken into microtasks carries `{items:[{id,text,done}], done,
-  total}` with the **this-occurrence** done state (see SKILL.md §Microtasks), so
+  story. A block broken into microtasks carries `{items:[{id,text,done}]}` with
+  the **this-occurrence** done state (see SKILL.md §Microtasks), so
   a partly-worked block shows how far the user actually got. It is written
   independently of the reflect mark: a `kept` block may show zero ticked steps,
   and a fully-ticked block may carry no `reflect` state at all. Report both as
@@ -39,26 +40,27 @@ Both ride the normal read tools — no separate fetch.
   rendered dial reads the same story.
 
 So to answer "how did yesterday go?", pull the day with `get_schedule` and read
-its `review` block plus each event's `reflect` state — don't reconstruct
+its `review` block plus each event's `reflect` status — don't reconstruct
 adherence yourself.
 
 ## Marking: the `reflect` op on `write_events`
 
 Record how a past event went with an op on the normal batch write — it rides the
-same atomic plan→apply→undo path as `create`/`update`/`move`/`shift`, so marks
+same atomic plan→apply→undo path as `create`/`update`/`shift`, so marks
 batch together and return an `undoToken`.
 
 ```
-{ op: "reflect", id, status, actualStart?, actualEnd?, actualEndNextDay? }
+{ op: "reflect", id, status, actualStart?, actualEnd? }
 ```
 
 - `status` — one of:
   - **`kept`** — happened as planned.
   - **`skipped`** — didn't happen.
   - **`changed`** — happened but differently. Pass `actualStart` / `actualEnd`
-    (`"HH:MM"`, 24-hour) to record the real time; omit them to log it as changed
-    with no exact time. Set `actualEndNextDay: true` if the real end crossed
-    midnight.
+    (local datetimes `"YYYY-MM-DDTHH:MM"`, always as a pair) to record the real
+    time; omit both to log it as changed with no exact time. An actual end after
+    midnight is on the next day. Actual times equal to the plan store a bare
+    `changed`.
   - **`added`** — unplanned but it happened. Its `actualStart` / `actualEnd`
     become the event's time (an `added` row is fully editable, since it never had
     a plan to deviate from).
@@ -69,15 +71,17 @@ batch together and return an `undoToken`.
   (Need to actually fix a past event's metadata? That's a normal `update`, a
   different intent.)
 - **Recurring occurrences.** Marking one occurrence of a series (an id like
-  `seriesId@YYYY-MM-DD`) targets that single occurrence's exception child, never
-  the base series — so reflecting Tuesday's standup doesn't touch every standup.
-- **Todoist-linked tasks mirror completion.** When the reflected event is linked
-  to a Todoist task, the mark drives the task's lifecycle in the *same* atomic
-  batch (one `undoToken`): **`kept` closes** the task, **`skipped` reopens** it.
-  `changed` and `added` never touch the task. Task links are always one-offs, so
-  this only applies to single events, never a recurring series. Nothing extra to
-  call — reflect as usual and the task stays in sync (see
-  references/calendars.md §Providers).
+  `seriesId@YYYY-MM-DD`, copied from the read) targets that single occurrence,
+  never the base series — so reflecting Tuesday's standup doesn't touch every
+  standup. A `kept` or `skipped` mark takes no actual times.
+- **Task-linked events mirror completion.** When the reflected event is linked
+  to a task in a task app (Todoist, Google Tasks, Microsoft To Do, Linear,
+  TickTick), the mark drives the task's lifecycle in the *same* atomic batch
+  (one `undoToken`): **`kept` completes** the task, **`skipped` reopens** it.
+  TickTick cannot reopen a task, so a `skipped` mark leaves it as it is.
+  `changed` and `added` never touch the task. Task links are always one-offs,
+  so this only applies to single events. Nothing extra to call — reflect as
+  usual (see references/calendars.md §Providers).
 - **No conflict check.** A reflect op records the past; it never claims a slot,
   so it won't conflict with anything.
 - **A `kept` can arrive without you.** For up to 30 minutes past a block's end,
@@ -113,8 +117,10 @@ mcp__reassign__review_day { date, action: "confirm" | "discard" }
 
 ## Past-day review
 
-`review_day` confirm/discard rejects today and future dates with `validation`.
-Choose a past date; an upgrade does not change that rule. Callers with active
+`review_day` `confirm` rejects today and future dates with `validation`.
+Choose a past date; an upgrade does not change that rule. `discard` works on
+any day, also on today's check-offs. A `discard` of a day with no review and
+no marks is `not_found`. Callers with active
 trial/subscription access have no plan-based historical edit limit. Access
 failures happen at the MCP gate (see references/limits.md).
 
@@ -128,8 +134,8 @@ failures happen at the MCP gate (see references/limits.md).
    the right `status` (+ actual times for `changed`/`added`). Batch them in one
    call — one op per event, since two ops on the same id in a batch are refused.
    If the user mentions steps they finished but never ticked, send those
-   `checklist` `check` ops as a **separate call** for the same reason (and on a
-   recurring event, target that single occurrence). Tick before you mark: it
+   `checklist` `check` ops (by item id) as a **separate call** for the same
+   reason (and on a recurring event, target that single occurrence). Tick before you mark: it
    keeps the option of parking the block open, which a reflect status closes.
 3. `mcp__reassign__review_day { date, action: "confirm" }` to freeze the day's
    adherence snapshot.
@@ -139,7 +145,7 @@ failures happen at the MCP gate (see references/limits.md).
    references/workflows.md §Weekly review).
 5. **Carry the leftovers.** For a block that was skipped, or whose checklist is
    only partly ticked, `capture` its **unticked steps** as a new parked block's
-   `steps` (SKILL.md §Backlog). Use `capture`, not `park`: by this point the
+   `checklist` (SKILL.md §Backlog). Use `capture`, not `park`: by this point the
    block carries a reflect status, and `park` refuses a reviewed event — so
    parking the whole block is only an option *before* step 2. Reflection
    records what *did* happen; the capture carries the remainder forward. Don't edit the step

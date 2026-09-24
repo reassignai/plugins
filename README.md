@@ -35,7 +35,7 @@ plugins/                                  ← repo root = plugin root
 │           ├── focus.md             ← focus intervals, live pauses, and saved rhythms
 │           ├── workflows.md
 │           ├── taxonomy.md
-│           ├── calendars.md          ← connected-calendar sync, event kinds, mirroring
+│           ├── calendars.md          ← calendar and task-app sync, import policies, event kinds, mirroring
 │           ├── reflection.md         ← reviewing a past day: marks + adherence
 │           └── limits.md             ← subscription access, refusal codes, and retries
 ├── server.json                           ← Official MCP Registry entry
@@ -77,13 +77,14 @@ Two independent trains, both checked by `scripts/build.sh`:
 ```bash
 node scripts/version.mjs                 # print both
 node scripts/version.mjs check           # exit 1 on drift
-node scripts/version.mjs set plugin 1.9.0
+node scripts/version.mjs set plugin 1.11.0
 ```
 
 ## Links
 
 - Website: [reassign.ai](https://reassign.ai)
 - MCP endpoint: `https://reassign.app/api/mcp`
+- Developer docs (MCP setup, REST API, error codes): [reassign.dev](https://reassign.dev)
 
 ## License
 
