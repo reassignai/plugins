@@ -352,8 +352,8 @@ day** (`plannedDate`) or a flexible window (`plannedDate` + inclusive
 in the tray instead of Someday. It uses the same active-trial/subscription
 access as the rest of MCP.
 
-- **Read** through `get_schedule`: `backlogCount` reports the true tray total.
-  Pass `includeBacklog:true` for items (top of tray first, one page at a time).
+- **Read** through `get_schedule`: `backlogCount` is the true tray total (absent
+  for an empty tray). `includeBacklog:true` gives items, top first, 50 a page.
   Each item is `{id, name, kind, areaId, activityTypeId}`, plus `notes`,
   `sourceUrl`, `durationMinutes`, `plannedDate`, `plannedUntil`, and
   `checklist` when set. There is no `overdue` flag: compare the end of the

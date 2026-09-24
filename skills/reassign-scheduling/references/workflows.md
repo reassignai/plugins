@@ -74,7 +74,8 @@ and activity types, `userPreferences`, and the day's load. Use `write_events` fo
    out of a trough (write_events `update` with a new `start`), or protect a slipping Q2
    block as recurring (see adhd-methods.md §eisenhower--q2-protection).
 4. Schedule next week's review as a recurring anchor if one doesn't exist
-   (`recurrence: "FREQ=WEEKLY;BYDAY=FR"`) if the user wants that routine.
+   (`recurrence: "FREQ=WEEKLY"` repeats on the weekday of `start`) if the user
+   wants that routine.
 
 ## Multi-day project chunking
 
