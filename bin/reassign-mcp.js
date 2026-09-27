@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { constants } from "node:os";
+import { dirname, join } from "node:path";
 
 const url = process.env.REASSIGN_MCP_URL || "https://reassign.app/api/mcp";
 
-// Validate before spawning: on Windows we use shell:true, so an http(s) check
-// keeps a URL with shell metacharacters out of cmd.exe (and catches typos).
+// Validate before spawning to catch typos and non-http(s) schemes early.
 let parsed;
 try {
   parsed = new URL(url);
@@ -17,12 +20,24 @@ if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
   process.exit(1);
 }
 
-const child = spawn("npx", ["-y", "mcp-remote", url], {
-  stdio: "inherit",
-  shell: process.platform === "win32",
-});
+// Run the pinned mcp-remote dependency with this Node, not `npx mcp-remote`:
+// no registry fetch of an unpinned version at startup, and no shell on Windows.
+const require = createRequire(import.meta.url);
+const pkgPath = require.resolve("mcp-remote/package.json");
+const { bin } = JSON.parse(readFileSync(pkgPath, "utf8"));
+const proxy = join(dirname(pkgPath), typeof bin === "string" ? bin : bin["mcp-remote"]);
+
+const child = spawn(process.execPath, [proxy, url], { stdio: "inherit" });
+
+// MCP clients stop the server with a signal to this process only; pass it on
+// so mcp-remote does not outlive the shim.
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(signal, () => child.kill(signal));
+}
 child.on("error", (err) => {
-  console.error(`reassign-mcp: failed to start (is npx on PATH?): ${err.message}`);
+  console.error(`reassign-mcp: failed to start mcp-remote: ${err.message}`);
   process.exit(1);
 });
-child.on("exit", (code) => process.exit(code ?? 0));
+child.on("exit", (code, signal) => {
+  process.exit(signal ? 128 + (constants.signals[signal] ?? 0) : (code ?? 1));
+});

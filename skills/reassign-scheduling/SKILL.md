@@ -9,9 +9,9 @@ description: >-
   context when relevant to a plan. Read get_schedule before proposing or
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
-allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback
+allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback mcp__plugin_reassign_reassign__get_schedule mcp__plugin_reassign_reassign__find_event mcp__plugin_reassign_reassign__schedule mcp__plugin_reassign_reassign__confirm_schedule mcp__plugin_reassign_reassign__write_events mcp__plugin_reassign_reassign__delete_events mcp__plugin_reassign_reassign__manage_categories mcp__plugin_reassign_reassign__manage_backlog mcp__plugin_reassign_reassign__undo mcp__plugin_reassign_reassign__show_day mcp__plugin_reassign_reassign__review_day mcp__plugin_reassign_reassign__get_weather mcp__plugin_reassign_reassign__get_energy mcp__plugin_reassign_reassign__send_feedback
 metadata:
-  version: "1.11.0"
+  version: "1.11.1"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -49,11 +49,11 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
 
 ## Always
 
-- Call `mcp__reassign__get_schedule` before proposing or changing times — in a
+- Call `get_schedule` before proposing or changing times — in a
   single call it anchors `now`, the user's `areas`, `activityTypes`,
   `userPreferences`, existing events, and the day's free slots + area/type
   load. `from` and `to` are required; use the same date for one day.
-  It also reports `backlogCount` (parked, un-timed blocks); pass
+  It also reports `backlogCount` (parked, un-timed blocks); set
   `includeBacklog:true` for the items, then `backlogQuery` to find one by name
   or `backlogPlannedOn` for the blocks planned for a day (see §Backlog).
 - A date is `YYYY-MM-DD`. A time is a local datetime `YYYY-MM-DDTHH:MM` in the
@@ -63,9 +63,9 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
 - Copy ids and values from a read into a write as they are. The API rejects
   unknown keys, old field names, and other formats; it does not coerce them.
 - Surface returned undo tokens — each write that changes data returns one
-  `undoToken` + `expiresAt` (30 minutes) for `mcp__reassign__undo`. Do not
+  `undoToken` + `expiresAt` (30 minutes) for `undo`. Do not
   invent a token.
-- Render with `mcp__reassign__show_day` when the user wants to *see* the plan —
+- Render with `show_day` when the user wants to *see* the plan —
   it draws the interactive 24-hour dial inline.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
   connected, the `integrations` context and per-event `source`/`readOnly` flags
@@ -243,13 +243,13 @@ references/reflection.md for the full detail):
   block.
 - **Mark.** Record how each event went with `write_events`' `reflect` op:
   `{op:"reflect", id, status}` where `status` is `kept` (happened as planned),
-  `skipped` (didn't happen), `changed` (happened differently — pass
+  `skipped` (didn't happen), `changed` (happened differently — set
   `actualStart`/`actualEnd` as local datetimes; an overnight actual ends on the
   next day), or `added` (unplanned but happened — its
   `actualStart`/`actualEnd` become its time). A mark on a planned event only sets its reflect status +
   actual time; you cannot rename/re-area it through a reflect op (that would game
   adherence). Marks ride the same atomic, undoable batch as other ops.
-- **Freeze / reset.** After marking, call `mcp__reassign__review_day` with
+- **Freeze / reset.** After marking, call `review_day` with
   `{date, action:"confirm"}` to freeze the day's adherence snapshot ("this is
   how it went") — that's what the `review` block and stats then read. Re-confirm
   to refresh. `{action:"discard"}` fully resets the day: it clears every mark and
@@ -270,7 +270,7 @@ around; read it before placing outdoor or weather-sensitive work. The headline i
 omitted for a pure multi-day range (one line can't represent it) and for a
 city-less user.
 
-- Reach for `mcp__reassign__get_weather` only when an outdoor or weather-
+- Reach for `get_weather` only when an outdoor or weather-
   sensitive plan needs the hourly detail (a run, commute, picnic, gardening — the
   exact dry/daylight window), or when the user explicitly asks about the weather.
   It returns a compact day overview plus a part-of-day breakdown, not an hourly
@@ -303,9 +303,9 @@ The user has a forecast daily **energy curve** — when they'll be most alert �
 built from their logged sleep (a two-process circadian + sleep-pressure model),
 any tracked caffeine/intakes, and personalized over time from the energy levels
 they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
-`mcp__reassign__get_energy` is the only way to read it.
+`get_energy` is the only way to read it.
 
-- Reach for `mcp__reassign__get_energy` when placement should follow alertness
+- Reach for `get_energy` when placement should follow alertness
   (where to put focus/deep work vs. admin/errands) or when the user asks how
   their energy looks or when they're at their best. It returns a compact day
   overview — the peak/dip windows, today's current reading + its drivers, and how
@@ -368,7 +368,7 @@ access as the rest of MCP.
   with `backlogOffset` and the same filters until the requested scope is
   covered; the first page is not the whole Inbox. After a tray write, restart
   pagination because its order may change.
-- **Write** through `mcp__reassign__manage_backlog` (`ops`, ≤50, atomic by
+- **Write** through `manage_backlog` (`ops`, ≤50, atomic by
   default — pass `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
     `durationMinutes` (5–1440), `kind` (default `blocking`),
@@ -461,10 +461,10 @@ Treat the tray as a first-class part of the plan, not a side list:
 
 ## Workflow: schedule a block
 
-1. `mcp__reassign__get_schedule` (`from` = `to` = the day) to anchor `now` and
+1. `get_schedule` (`from` = `to` = the day) to anchor `now` and
    load.
 2. Resolve any relative phrasing yourself ("tomorrow", "after lunch") into
-   structured fields, then call `mcp__reassign__schedule` with `requests[]`.
+   structured fields, then call `schedule` with `requests[]`.
    Each request has `name`, an integer `durationMinutes` (5–1440), and **one**
    of two forms. The tool does no date parsing.
    - An exact `start` (local `"YYYY-MM-DDTHH:MM"`). A free `start` books at
@@ -483,7 +483,7 @@ Treat the tray as a first-class part of the plan, not a side list:
 4. Pass a `requestId` so a retry doesn't double-book. Only `requestId` replays
    (60 seconds); a request without one is always new (references/limits.md).
 5. For proposals, show the best fit and one useful alternative, then
-   `mcp__reassign__confirm_schedule` with `items[]` = `{token, choice}`
+   `confirm_schedule` with `items[]` = `{token, choice}`
    (0-based; omit `choice` for the best fit). It re-checks conflicts before
    committing. A token expires at `expiresAt` (about 10 minutes); an expired
    token fails with `not_found` and needs a fresh `schedule` call. Pass
@@ -499,7 +499,7 @@ Treat the tray as a first-class part of the plan, not a side list:
 
 ## Workflow: find time
 
-1. `mcp__reassign__get_schedule` — `days[].freeSlots` plus area/type load give
+1. `get_schedule` — `days[].freeSlots` plus area/type load give
    availability; there is no separate free-slot tool.
 2. Place demanding work in the user's stated peak window and admin/shallow work
    in the trough.
@@ -507,13 +507,13 @@ Treat the tray as a first-class part of the plan, not a side list:
    fill the slot from a parked block before inventing new work — blocks
    planned for that day first, then by importance and fit, matched to the window
    (§Backlog).
-4. Offer the slot; on yes → `mcp__reassign__schedule` →
-   `mcp__reassign__confirm_schedule` (or `manage_backlog` `schedule` op to place
+4. Offer the slot; on yes → `schedule` →
+   `confirm_schedule` (or `manage_backlog` `schedule` op to place
    a parked block directly).
 
 ## Workflow: review the day / week
 
-1. `mcp__reassign__get_schedule` for the range (`from`+`to`). For a day already
+1. `get_schedule` for the range (`from`+`to`). For a day already
    reviewed, read its `review` block (adherence) and each event's `reflect`
    block alongside the plan. A block's `checklist` adds the finer grain — the
    `done` items show how far into it the user actually got, which a bare
@@ -523,7 +523,7 @@ Treat the tray as a first-class part of the plan, not a side list:
    into the proposal" beats "you skipped it".
 3. If the user wants to **record** how a past day went (not just read it), mark
    its events with `write_events`' `reflect` op, then freeze it with
-   `mcp__reassign__review_day {date, action:"confirm"}` — see §Reflection and
+   `review_day {date, action:"confirm"}` — see §Reflection and
    references/reflection.md. Surface the `undoToken`.
 4. Carry skipped or unfinished work forward (§Backlog): `park` *before*
    marking, because a reflected event is refused ("Reviewed events can't be
@@ -532,7 +532,7 @@ Treat the tray as a first-class part of the plan, not a side list:
 
 ## Workflow: reshuffle / bulk edits
 
-- Batch create/update/shift via `mcp__reassign__write_events` (`ops`, ≤50,
+- Batch create/update/shift via `write_events` (`ops`, ≤50,
   atomic by default — pass `partial:true` to allow per-op failures). `update`
   with a new `start`/`end` moves or resizes an event, also to another day; a
   lone `start` keeps the duration, and a lone `end` keeps the start. `shift`
@@ -551,11 +551,11 @@ Treat the tray as a first-class part of the plan, not a side list:
   value. `recurrence:null` turns a series back into a one-off. When a new rule
   skips the anchor day, the result carries `firstOccurrence`.
 - Target each event id at most once per call; `render:true` repaints a dial.
-- Remove events or clear a range via `mcp__reassign__delete_events` (`delete`
+- Remove events or clear a range via `delete_events` (`delete`
   by `id` with the same id rules, or `clear` with `from`+`to`).
-- Create areas/types with `mcp__reassign__manage_categories` before you
+- Create areas/types with `manage_categories` before you
   reference them; un-timed blocks go through `manage_backlog` (§Backlog).
-- `mcp__reassign__find_event` finds an event by name; on `ambiguous: true`, ask.
+- `find_event` finds an event by name; on `ambiguous: true`, ask.
 - For recurring masters (rule, anchor span, next occurrence, override counts)
   pass `includeSeries:true` → get_schedule returns a `series` array.
 - Reflection (§Reflection) and microtasks (§Microtasks) use the `reflect` and
@@ -585,7 +585,7 @@ references/limits.md for subscription access and how to read a refusal.
 ## Feedback
 
 If a tool loops, needs a workaround, or the user hits a limitation in Reassign
-itself, report it with `mcp__reassign__send_feedback`. Send one concise report
+itself, report it with `send_feedback`. Send one concise report
 per issue with `kind` (`bug`/`idea`/`other`) and `message`; avoid private schedule
 contents. Feedback is delivered to the team through transactional email.
 Use an optional UUID `submissionId`; retry with the same UUID and identical

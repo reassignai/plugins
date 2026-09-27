@@ -98,7 +98,7 @@ A whole day's confirm/reset is date-keyed, so it's its own tool rather than a
 per-event op. One tool, two actions:
 
 ```
-mcp__reassign__review_day { date, action: "confirm" | "discard" }
+review_day { date, action: "confirm" | "discard" }
 ```
 
 - **`action: "confirm"`** — "this is how it went." Freezes a per-day adherence
@@ -111,7 +111,7 @@ mcp__reassign__review_day { date, action: "confirm" | "discard" }
   reflection. Use it to start a day's reflection over, or to drop one confirmed
   by mistake.
 - Both go through the scoped write path and are **reversible** via the returned
-  `undoToken` (the standard 30-minute window via `mcp__reassign__undo`). Because
+  `undoToken` (the standard 30-minute window via `undo`). Because
   `discard` is destructive, confirm intent before discarding a day the user has
   already reviewed.
 
@@ -137,7 +137,7 @@ failures happen at the MCP gate (see references/limits.md).
    `checklist` `check` ops (by item id) as a **separate call** for the same
    reason (and on a recurring event, target that single occurrence). Tick before you mark: it
    keeps the option of parking the block open, which a reflect status closes.
-3. `mcp__reassign__review_day { date, action: "confirm" }` to freeze the day's
+3. `review_day { date, action: "confirm" }` to freeze the day's
    adherence snapshot.
 4. Surface the `undoToken`. To summarize, read the now-present `review` block
    (adherence by area/type) and name one win + one concrete adjustment for the

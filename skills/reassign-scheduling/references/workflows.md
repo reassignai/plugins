@@ -1,7 +1,7 @@
 # Extended workflows
 
 Multi-step scenarios that go beyond the single-block flows in SKILL.md. Every
-one starts with `mcp__reassign__get_schedule` to anchor `now`, the user's areas
+one starts with `get_schedule` to anchor `now`, the user's areas
 and activity types, `userPreferences`, and the day's load. Use `write_events` for event edits, `delete_events` for removals, and
 `manage_backlog` for parked intentions (≤50 ops per call, atomic unless
 `partial:true`). Surface returned undo tokens and respect existing authorization.
