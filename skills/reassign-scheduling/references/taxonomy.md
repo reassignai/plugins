@@ -21,7 +21,7 @@ of my life," pattern answers "what mode of work."
 
 ## Creating them with `manage_categories`
 
-`mcp__reassign__manage_categories` takes `areas` and/or `activityTypes`, each an
+`manage_categories` takes `areas` and/or `activityTypes`, each an
 array of ops:
 
 - Area: `{op:"create", name, color?}` / `{op:"update", id, name?, color?,

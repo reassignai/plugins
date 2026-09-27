@@ -1,11 +1,12 @@
 {
   "name": "@reassign/mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Client shim for the Reassign MCP, a circular 24-hour calendar and time-tracking copilot.",
   "type": "module",
   "bin": { "reassign-mcp": "bin/reassign-mcp.js" },
   "mcpName": "app.reassign/reassign",
   "files": ["bin"],
+  "dependencies": { "mcp-remote": "0.14.3" },
   "engines": { "node": ">=18" },
   "homepage": "https://reassign.ai",
   "repository": { "type": "git", "url": "git+https://github.com/reassignai/plugins.git" },
