@@ -53,6 +53,11 @@ ROOT="$ROOT" node -e '
     if (!spec.has(name)) throw new Error(`mcp.json: missing server "${name}" that .mcp.json declares`);
 '
 
+# claude.ai and Cowork refuse to install a plugin with a top-level bin/, so the
+# npm shim lives in npm/. Fail here rather than at directory validation.
+echo "→ Validating surfaces"
+test ! -e "$ROOT/bin" || { echo "top-level bin/ blocks Cowork and Claude apps; move it (npm shim → npm/)"; exit 1; }
+
 echo "→ Validating version lockstep"
 node "$ROOT/scripts/version.mjs" check
 

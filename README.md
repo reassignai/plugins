@@ -40,7 +40,7 @@ plugins/                                  ← repo root = plugin root
 │           └── limits.md             ← subscription access, refusal codes, and retries
 ├── server.json                           ← Official MCP Registry entry
 ├── package.json                          ← npm client shim
-├── bin/reassign-mcp.js
+├── npm/reassign-mcp.js                   ← npm shim entry (not bin/: Cowork and apps refuse a top-level bin/)
 ├── scripts/
 │   ├── build.sh                          ← validates manifests + version lockstep
 │   └── version.mjs                       ← reads/sets the two version trains
