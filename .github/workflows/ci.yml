@@ -27,5 +27,5 @@ jobs:
 
       - name: Check npm shim
         run: |
-          node --check bin/reassign-mcp.js
+          node --check npm/reassign-mcp.js
           npm pack --dry-run

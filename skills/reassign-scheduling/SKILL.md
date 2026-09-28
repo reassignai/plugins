@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.11.2"
+  version: "1.11.3"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
