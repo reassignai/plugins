@@ -9,9 +9,8 @@ description: >-
   context when relevant to a plan. Read get_schedule before proposing or
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
-allowed-tools: mcp__reassign__get_schedule mcp__reassign__find_event mcp__reassign__schedule mcp__reassign__confirm_schedule mcp__reassign__write_events mcp__reassign__delete_events mcp__reassign__manage_categories mcp__reassign__manage_backlog mcp__reassign__undo mcp__reassign__show_day mcp__reassign__review_day mcp__reassign__get_weather mcp__reassign__get_energy mcp__reassign__send_feedback mcp__plugin_reassign_reassign__get_schedule mcp__plugin_reassign_reassign__find_event mcp__plugin_reassign_reassign__schedule mcp__plugin_reassign_reassign__confirm_schedule mcp__plugin_reassign_reassign__write_events mcp__plugin_reassign_reassign__delete_events mcp__plugin_reassign_reassign__manage_categories mcp__plugin_reassign_reassign__manage_backlog mcp__plugin_reassign_reassign__undo mcp__plugin_reassign_reassign__show_day mcp__plugin_reassign_reassign__review_day mcp__plugin_reassign_reassign__get_weather mcp__plugin_reassign_reassign__get_energy mcp__plugin_reassign_reassign__send_feedback
 metadata:
-  version: "1.11.1"
+  version: "1.11.2"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -275,7 +274,7 @@ city-less user.
   exact dry/daylight window), or when the user explicitly asks about the weather.
   It returns a compact day overview plus a part-of-day breakdown, not an hourly
   dump. Indoor plans don't need it — the headline already covers a quick glance.
-- It defaults to today and the user's city. Pass `date` (ISO `YYYY-MM-DD`) for
+- It defaults to today and the user's city. Set `date` (ISO `YYYY-MM-DD`) for
   another day, or `location` (a city/place name) to ask about somewhere else —
   `location` wins over the saved city, so "weather in London?" works regardless.
 - Use it to bias placement: steer a run into a dry, daylight window; flag when an
@@ -310,7 +309,7 @@ they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
   their energy looks or when they're at their best. It returns a compact day
   overview — the peak/dip windows, today's current reading + its drivers, and how
   calibrated the estimate is — not a per-hour dump.
-- It defaults to today and the user's own data. Pass `date` (ISO `YYYY-MM-DD`)
+- It defaults to today and the user's own data. Set `date` (ISO `YYYY-MM-DD`)
   for another day: a future day forecasts from habitual sleep; a past day is
   reflection-aware (it reads the actual logged sleep) but energy is still
   *modeled, not measured* — don't present it as a record of how the day felt.
@@ -369,7 +368,7 @@ access as the rest of MCP.
   covered; the first page is not the whole Inbox. After a tray write, restart
   pagination because its order may change.
 - **Write** through `manage_backlog` (`ops`, ≤50, atomic by
-  default — pass `partial:true` for best-effort). Each op is one of:
+  default — set `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
     `durationMinutes` (5–1440), `kind` (default `blocking`),
     `areaId`/`activityTypeId`, an optional `plannedDate` or
@@ -386,7 +385,7 @@ access as the rest of MCP.
     `sourceUrl: null` clears a stale link off a block the user is keeping.
   - `remove` — delete one by `id`.
   - `schedule` — **place** a parked block (`id`) on the dial at `start` (a
-    local datetime; its `durationMinutes` sizes it; pass `recurrence` to repeat)
+    local datetime; its `durationMinutes` sizes it; set `recurrence` to repeat)
     and lift it off the tray. The new event takes the item's `kind`. It obeys
     the event rules: a span of 5 minutes to 168 hours, and an overlap with a
     blocking event fails with `conflict` plus `nearestSlots`. An earlier `park`
@@ -480,13 +479,13 @@ Treat the tray as a first-class part of the plan, not a side list:
    a `commitToken` and `expiresAt`, **also when only one slot fits**. Only
    `autoCommitBest:true` books the top option at once. Use it for an authorized
    routine booking; leave it off to compare options.
-4. Pass a `requestId` so a retry doesn't double-book. Only `requestId` replays
+4. Set a `requestId` so a retry doesn't double-book. Only `requestId` replays
    (60 seconds); a request without one is always new (references/limits.md).
 5. For proposals, show the best fit and one useful alternative, then
    `confirm_schedule` with `items[]` = `{token, choice}`
    (0-based; omit `choice` for the best fit). It re-checks conflicts before
    committing. A token expires at `expiresAt` (about 10 minutes); an expired
-   token fails with `not_found` and needs a fresh `schedule` call. Pass
+   token fails with `not_found` and needs a fresh `schedule` call. Set
    `render:true` to repaint an open dial in the same call. Recurring proposals
    are checked across a bounded conflict horizon, not forever.
 6. Allow transitions and uncertainty using the user's preferences and past
@@ -533,7 +532,7 @@ Treat the tray as a first-class part of the plan, not a side list:
 ## Workflow: reshuffle / bulk edits
 
 - Batch create/update/shift via `write_events` (`ops`, ≤50,
-  atomic by default — pass `partial:true` to allow per-op failures). `update`
+  atomic by default — set `partial:true` to allow per-op failures). `update`
   with a new `start`/`end` moves or resizes an event, also to another day; a
   lone `start` keeps the duration, and a lone `end` keeps the start. `shift`
   nudges by `byMinutes`. Reference areas/types by id; on `update`, `null` clears
@@ -557,7 +556,7 @@ Treat the tray as a first-class part of the plan, not a side list:
   reference them; un-timed blocks go through `manage_backlog` (§Backlog).
 - `find_event` finds an event by name; on `ambiguous: true`, ask.
 - For recurring masters (rule, anchor span, next occurrence, override counts)
-  pass `includeSeries:true` → get_schedule returns a `series` array.
+  set `includeSeries:true` → get_schedule returns a `series` array.
 - Reflection (§Reflection) and microtasks (§Microtasks) use the `reflect` and
   `checklist` ops of the same tool.
 
