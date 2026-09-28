@@ -30,7 +30,7 @@ array of ops:
 - Activity type: same shape but `pattern` instead of `color`.
 
 The batch is **atomic by default** — if any op is invalid, nothing is written;
-pass `partial:true` for best-effort. The response has two row arrays, `areas`
+set `partial:true` for best-effort. The response has two row arrays, `areas`
 and `activityTypes`, each indexed on its own input array. A create or update
 row is the `created`/`updated` object `{id, name, color | pattern}`; a delete
 row lists `deletedIds` (plus `movedEvents` after a reassign). A name that
@@ -56,7 +56,7 @@ the response rather than assuming it's unchanged.
 ## Deleting safely
 
 You can delete only the user's own (non-global) entries. If events still use the
-entry, the delete fails unless you pass `reassignTo` — another entry's id — to
+entry, the delete fails unless you set `reassignTo` — another entry's id — to
 move those events first. Each call that writes returns one `undoToken`
 (30-min window) that reverses the whole call. So the
 safe delete is: pick a destination area/type, `delete` with `reassignTo` set,

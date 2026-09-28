@@ -171,7 +171,7 @@ SKILL.md §Backlog.
    it in"), that's one block with a `checklist`, not three parked blocks — and the
    steps ride along when it's later placed. Capturing something the user found
    on a **page** is the one case that takes `sourceUrl` and `enrich` (SKILL.md
-   §Captured from a page): pass the address so they get a clickable source chip,
+   §Captured from a page): give the address so they get a clickable source chip,
    and let `enrich` name it, since a paragraph of page text is not an intention.
    Neither field belongs on a task they simply told you about.
 2. **Plan the day from the tray.** Read `get_schedule` with

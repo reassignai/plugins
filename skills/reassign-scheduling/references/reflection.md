@@ -56,7 +56,7 @@ batch together and return an `undoToken`.
 - `status` — one of:
   - **`kept`** — happened as planned.
   - **`skipped`** — didn't happen.
-  - **`changed`** — happened but differently. Pass `actualStart` / `actualEnd`
+  - **`changed`** — happened but differently. Set `actualStart` / `actualEnd`
     (local datetimes `"YYYY-MM-DDTHH:MM"`, always as a pair) to record the real
     time; omit both to log it as changed with no exact time. An actual end after
     midnight is on the next day. Actual times equal to the plan store a bare

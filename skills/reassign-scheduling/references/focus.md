@@ -6,7 +6,7 @@ single block). Scheduled breaks are derived from its cadence; live pauses
 record additional break spans on that same block. Neither creates separate
 events. Set the rhythm on the one block instead of separate buffer events.
 
-- **Set / change.** Pass `focusIntervals: {focusMin, breakMin}` on a
+- **Set / change.** Set `focusIntervals: {focusMin, breakMin}` on a
   `write_events` `create` or `update` — integers, `focusMin` 5–180, `breakMin`
   1–60 (e.g. `{focusMin:25, breakMin:5}` or `{focusMin:50, breakMin:10}`). The
   breaks fall *between* the focus intervals and the block always ends on a focus;
