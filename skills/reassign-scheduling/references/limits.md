@@ -51,6 +51,9 @@ the same denied call cannot fix account access, scopes, or ownership.
 - A rejected batch (no op applied) has a top-level code only when its failed
   rows agree on one. Mixed failures have no single remedy: inspect each row.
 - HTTP/JSON-RPC transport failures happen outside these tool envelopes.
+- A tool schema can list `llm_model` (required) and `conversation_id`. These
+  are analytics fields; the server does not enforce them. Set `llm_model` to
+  your model id. Send back the `conversation_id` that a result returns.
 
 ## Batches and retries
 
@@ -59,8 +62,8 @@ atomic by default: a refused op prevents the batch from landing. The valid ops
 of a rolled-back batch are `skipped` rows with a `reason`; only the failed ops
 are `error` rows. With `partial:true`, inspect the rows and retain successes.
 An op that is not valid is an `error` row with `validation`, not a failure of
-the whole call. A batch whose writes landed is never rejected: it keeps its
-`undoToken`, also when the read-back of a row fails (an `internal` row).
+the whole call. A batch whose writes landed is never rejected, also when the
+read-back of a row fails (an `internal` row).
 `schedule` and `confirm_schedule` report independent indexed rows; an `ok`
 proposal is not yet a booking. Do not assume every row failed from one error.
 
@@ -76,8 +79,12 @@ needs a new `schedule`, not another `confirm_schedule`.
 
 `write_events`, `delete_events`, `schedule`, `confirm_schedule`,
 `manage_backlog`, `manage_categories`, and `review_day` return one `undoToken`
-+ `expiresAt` (30 minutes) when they change data. A call that changed nothing,
-or a rejected batch, has no token. `undo` takes `tokens` (1 to 20) and returns
-only per-token `results`; an undo cannot itself be undone. When a calendar
-sync is sending the same change at that moment, the undo row fails with
-`conflict` and changes nothing: retry it after a moment.
+and `expiresAt` (30 minutes) when they change data. A call that changed
+nothing, or a rejected batch, has no token. The server records the undo after
+the change lands. When that record fails, the change stays and the result has
+no `undoToken`: tell the user that this change has no undo. `undo` takes
+`tokens` (1 to 20) and returns only per-token `results`; an undo cannot itself
+be undone. A token reverts one time: a second `undo` of it is a `validation`
+row ("Nothing to undo for this token"). When a calendar sync sends the same
+change at that moment, the undo row fails with `conflict` and changes nothing:
+retry it after a moment.

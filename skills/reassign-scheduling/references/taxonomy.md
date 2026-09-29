@@ -51,7 +51,9 @@ doesn't exist yet. Sequence:
 Some areas/types are shared global defaults. Editing one **forks it into the
 user's own copy**, so the returned id may differ from the one you passed — each
 result reports the effective id (and `forkedFrom`). Always read the id back from
-the response rather than assuming it's unchanged.
+the response rather than assuming it's unchanged. A write that still sends the
+global id in `areaId` or `activityTypeId` links to the fork of the user. This
+applies to `write_events`, `manage_backlog`, `schedule`, and `reassignTo`.
 
 ## Deleting safely
 
