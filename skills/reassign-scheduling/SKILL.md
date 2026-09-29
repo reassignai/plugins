@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.11.3"
+  version: "1.12.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -549,9 +549,10 @@ Treat the tray as a first-class part of the plan, not a side list:
   `sourceUrl`) are refused on one occurrence unless they equal the current
   value. `recurrence:null` turns a series back into a one-off. When a new rule
   skips the anchor day, the result carries `firstOccurrence`.
-- Target each event id at most once per call; `render:true` repaints a dial.
-- Remove events or clear a range via `delete_events` (`delete`
-  by `id` with the same id rules, or `clear` with `from`+`to`).
+- Target each event id at most once per call, and each series with at most
+  one `scope:"future"` op and not also its bare id. `render:true` repaints.
+- `delete_events`: `delete` by `id` (same id rules), or `clear` with
+  `from`+`to`; `clear` keeps `readOnly` events (`skippedReadOnly`).
 - Create areas/types with `manage_categories` before you
   reference them; un-timed blocks go through `manage_backlog` (§Backlog).
 - `find_event` finds an event by name; on `ambiguous: true`, ask.

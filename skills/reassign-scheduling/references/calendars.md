@@ -34,10 +34,9 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   `plannedDate`…`plannedUntil` window).
 - **Title, notes, due date, and completion sync both ways**, with these
   differences for the planned date of an Inbox item:
-  - Google Tasks, Microsoft To Do, Linear: a `manage_backlog` `update` of
-    `plannedDate` writes back to the task app. These apps keep one due date,
-    so a `plannedUntil` window is a `validation` error.
-  - Todoist, TickTick: the date is provider-owned. An update of it is refused
+  - Every task app: a `manage_backlog` `update` of `plannedDate` or
+    `plannedUntil` writes back to the task app.
+  - A recurring task: the date is provider-owned. An update of it is refused
     with `permission` (not an access problem; do not offer an upgrade). The
     user changes the date in the task app.
 - **Place and remove keep the task.** Scheduling or moving a linked slot never
@@ -48,6 +47,9 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   TickTick task cannot lose its dates from Reassign: complete it or change its
   schedule in TickTick. Completed TickTick history cannot change the current
   task.
+- **Linear limits.** Reassign cannot delete a Linear issue. A team can map
+  estimate points to hours. The user sets this in the app, and the Inbox
+  duration then follows the estimate. `get_schedule` does not show it.
 
 ## Event kinds (the third axis)
 
@@ -89,8 +91,9 @@ check each source's `status` before describing sync as active. Shape:
   by default. Absent if the user hasn't set one (or it's no longer writable).
 - `sources[]` — one per connected account: `provider`, `status`
   (`connected` is the only one that syncs; also `disconnected`, `error`,
-  `pending`, `revoked`), and `calendars[]`. A connected app does not get the
-  `account` name; only the Reassign apps and a Personal Access Token get it.
+  `pending`, `revoked`), `account` (the account name at the provider, often an
+  email), and `calendars[]`. Use `account` to tell apart two calendars with the
+  same name.
 - Each calendar: `id`, `name`, `writable` (only a writable calendar is a valid
   `calendarId`), an optional `timezone` (a fallback when the user has no
   selected zone), and the import policy (below).
@@ -153,6 +156,8 @@ There is **no separate sync tool**. When the user has a calendar connected:
 - Deleting a linked event via `delete_events` removes it from the provider too.
 - This includes recurring series: whole-series, one-occurrence, and
   `scope:"future"` edits propagate the matching change to the provider's series.
+- On a date with two occurrences of one imported series, `seriesId@YYYY-MM-DD`
+  is refused. Use the `id` of the changed occurrence from a read.
 
 So plan and edit normally — don't warn the user about "also updating the
 provider" unless it matters; do confirm before destructive edits as usual, and
