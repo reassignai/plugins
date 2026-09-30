@@ -173,7 +173,10 @@ SKILL.md §Backlog.
    on a **page** is the one case that takes `sourceUrl` and `enrich` (SKILL.md
    §Captured from a page): give the address so they get a clickable source chip,
    and let `enrich` name it, since a paragraph of page text is not an intention.
-   Neither field belongs on a task they simply told you about.
+   Neither field belongs on a task they simply told you about. A raw dump
+   (pasted notes, a dictation transcript) → one `capture_text` op, and let
+   Reassign split it (SKILL.md §Backlog). Do not send it for tasks that you
+   already named with the user.
 2. **Plan the day from the tray.** Read `get_schedule` with
    `includeBacklog:true`; follow `nextBacklogOffset` with the same filters for
    a complete sweep. Items carry their planned day/window; an item whose window
