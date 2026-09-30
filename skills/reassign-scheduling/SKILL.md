@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.12.0"
+  version: "1.13.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -374,6 +374,20 @@ access as the rest of MCP.
     `areaId`/`activityTypeId`, an optional `plannedDate` or
     `plannedDate`+`plannedUntil` window, optional `checklist`, and optional
     `sourceUrl`/`enrich` — see §Captured from a page).
+  - `capture_text` — give raw user input as `text` (1–2000 chars): a pasted
+    list, a dictation transcript, a page selection. Reassign's AI splits it
+    into 1–10 blocks, each with a name, and notes, a length, a day (today to a
+    year out, in the user's zone) and a `checklist` when the text gives them.
+    The optional `notes`, `durationMinutes`, `kind`, `areaId`/`activityTypeId`,
+    `plannedDate`/`plannedUntil` and `sourceUrl` go to every block and win over
+    the AI; send one only when the user chose it. There is no `name` or
+    `checklist` field. The result is `{created: [item…], source}` in the text
+    order. `source: "text"` means the AI did not run: no plan access, a model
+    failure or timeout, or more than 5 `capture_text` ops in one batch. Then
+    the first line is the name and the other lines are the notes. It never
+    fails for that reason, so do not retry it. One undo removes every block.
+    Use `capture` when the user names a task, because a name the user chose
+    must stand.
   - `update` — edit one by `id`. An omitted field keeps its value; `null` on
     `areaId`/`activityTypeId` clears the link. `plannedDate: null` moves it back
     to Someday (clearing any window end); `plannedUntil: null` collapses the
