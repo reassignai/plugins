@@ -17,11 +17,13 @@ Both ride the normal read tools — no separate fetch.
 
 - **Per-day `review` block** (on `get_schedule`, one per requested day): present
   **only once the day has been confirmed**. Carries `reviewedAt` and
-  `adherence`: `event` and `layer` scores (0 to 1), `plannedMinutes`,
-  `unplannedMinutes`, and the `byArea` / `byActivityType` breakdowns (each
+  `adherence`: `event` and `layer` scores (0 to 1, or `null` — see below),
+  `plannedMinutes`, `unplannedMinutes`, and the `byArea` / `byActivityType` breakdowns (each
   `{areaId | activityTypeId, adherence, plannedMinutes}`). It's read off the **frozen**
   snapshot written at confirm time, not a live recompute, so it's stable. An
-  unreviewed day has no `review` block.
+  unreviewed day has no `review` block. `event` and `layer` are `null` for a
+  day with no planned time; `layer` is also `null` when no planned time had an
+  area. A `null` score means "nothing to score", not 0.
 - **Per-event `reflect` block** (on each event in `get_schedule` / `find_event`):
   present **only when that event has been touched** by a mark. Carries `status`
   and, only on a `changed` event with recorded times, `actualStart` /
@@ -104,7 +106,9 @@ review_day { date, action: "confirm" | "discard" }
 - **`action: "confirm"`** — "this is how it went." Freezes a per-day adherence
   snapshot over the day's events onto a day-review row; that row is exactly what
   `get_schedule`'s `review` block and the stats then surface. Re-confirming a day
-  refreshes the snapshot (idempotent).
+  refreshes the snapshot (idempotent). A confirm on a day with no marks still
+  confirms, but returns a `warning`: the score counts each unmarked event as
+  kept. Relay the warning, or mark the events first.
 - **`action: "discard"`** — fully resets the day's reflection: deletes the
   day-review row, clears the kept/skipped/changed marks + actual times off the
   day's planned events, and removes events that were `added` only as part of the
@@ -120,7 +124,8 @@ review_day { date, action: "confirm" | "discard" }
 `review_day` `confirm` rejects today and future dates with `validation`.
 Choose a past date; an upgrade does not change that rule. `discard` works on
 any day, also on today's check-offs. A `discard` of a day with no review and
-no marks is `not_found`. Callers with active
+no marks succeeds with `updated: []`, `deletedIds: []`, and no `undoToken`,
+because it changed nothing. Callers with active
 trial/subscription access have no plan-based historical edit limit. Access
 failures happen at the MCP gate (see references/limits.md).
 

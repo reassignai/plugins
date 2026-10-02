@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.13.0"
+  version: "1.14.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -55,6 +55,8 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   It also reports `backlogCount` (parked, un-timed blocks); set
   `includeBacklog:true` for the items, then `backlogQuery` to find one by name
   or `backlogPlannedOn` for the blocks planned for a day (see §Backlog).
+  On a later read in the same task, `includeLookups:false` leaves out `areas`,
+  `activityTypes`, and `integrations`. `userPreferences` and `timezone` stay.
 - A date is `YYYY-MM-DD`. A time is a local datetime `YYYY-MM-DDTHH:MM` in the
   top-level `timezone`, with no seconds and no offset. Every span is `start` +
   `end`; an overnight span ends on the next day. A slot to midnight ends at
@@ -62,8 +64,9 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
 - Copy ids and values from a read into a write as they are. The API rejects
   unknown keys, old field names, and other formats; it does not coerce them.
 - Surface returned undo tokens — each write that changes data returns one
-  `undoToken` + `expiresAt` (30 minutes) for `undo`. Do not
-  invent a token.
+  `undoToken` + `expiresAt` (a UTC instant, 30 minutes) for `undo`. Do not
+  invent a token. A token is `stale` when a row that the write touched
+  changed again later; then the undo changes nothing (references/limits.md).
 - Render with `show_day` when the user wants to *see* the plan —
   it draws the interactive 24-hour dial inline.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
@@ -83,9 +86,9 @@ with access: recurrence, backlog, focus intervals, and microtasks are included.
   subscription.” Relay it; a one-off, shorter date range, or different tool
   cannot bypass it. Reconnecting does not restore subscription access.
 - Tool refusals carry a per-row `error.code` or a whole-tool
-  `_meta["reassign/error"].code` when the client exposes metadata. Distinguish
-  account `permission`, connection `scope`, and resource `read_only`; they need
-  different remedies. `rate_limited` means wait, not upgrade.
+  `{"error": {"code", "message"}}` JSON text (`isError:true`), also on the
+  prose tools. Distinguish account `permission`, connection `scope`, and
+  resource `read_only`; they need different remedies. `rate_limited` means wait, not upgrade.
 - See references/limits.md for response shapes, mixed batches, and retries.
 
 ## Event kinds
@@ -181,6 +184,8 @@ belonging to one day. Every rule below follows from that split.
   from the other — report what the `checklist` block actually says.
 - **Parked blocks carry steps too**, as a `checklist` with no `done` state
   (there's no occurrence to tick against until they're placed) — see §Backlog.
+  A `park` keeps the ticks but hides them, and a later one-off `schedule`
+  gives them back.
 - **Write steps directly.** Reassign also has an in-app AI breakdown
   (`/microtasks`), but you can propose the steps here and write them with the
   checklist op. There is no need to invoke a second AI workflow.
@@ -256,9 +261,15 @@ references/reflection.md for the full detail):
   `undoToken`.
 - `review_day` `confirm` requires a **past** date. Today or a future day is
   `validation` (no subscription lifts it, so do not offer an upgrade).
+  A `confirm` on a day with no marks still confirms, but adds a `warning`: the
+  score counts each unmarked event as kept. Relay the warning.
   `discard` works on any day, also on today's check-offs. A `discard` of a
-  day with no review and no marks is `not_found`. There is no
+  day with no review and no marks succeeds with `updated: []`,
+  `deletedIds: []`, and no `undoToken`. There is no
   plan-based editable-past window for callers with access.
+- `adherence.event` and `adherence.layer` are `null` for a day with no planned
+  time. `layer` is also `null` when no planned time had an area. Do not read
+  `null` as 0.
 
 ## Weather
 
@@ -372,16 +383,17 @@ access as the rest of MCP.
   - `capture` — create a parked block (`name`, optional `notes`,
     `durationMinutes` (5–1440), `kind` (default `blocking`),
     `areaId`/`activityTypeId`, an optional `plannedDate` or
-    `plannedDate`+`plannedUntil` window, optional `checklist`, and optional
-    `sourceUrl`/`enrich` — see §Captured from a page).
+    `plannedDate`+`plannedUntil` window, optional `checklist`, optional
+    `calendarId` — see §Inbox Source, and optional `sourceUrl`/`enrich` — see
+    §Captured from a page).
   - `capture_text` — give raw user input as `text` (1–2000 chars): a pasted
     list, a dictation transcript, a page selection. Reassign's AI splits it
     into 1–10 blocks, each with a name, and notes, a length, a day (today to a
     year out, in the user's zone) and a `checklist` when the text gives them.
     The optional `notes`, `durationMinutes`, `kind`, `areaId`/`activityTypeId`,
-    `plannedDate`/`plannedUntil` and `sourceUrl` go to every block and win over
-    the AI; send one only when the user chose it. There is no `name` or
-    `checklist` field. The result is `{created: [item…], source}` in the text
+    `plannedDate`/`plannedUntil`, `sourceUrl` and `calendarId` go to every
+    block and win over the AI; send one only when the user chose it. There is
+    no `name` or `checklist` field. The result is `{created: [item…], source}` in the text
     order. `source: "text"` means the AI did not run: no plan access, a model
     failure or timeout, or more than 5 `capture_text` ops in one batch. Then
     the first line is the name and the other lines are the notes. It never
@@ -409,18 +421,41 @@ access as the rest of MCP.
     been reviewed; a recurring, sleep, reviewed, or not-owned event is refused
     with a reason (edit it on the dial instead). Parking a calendar-linked event
     removes its calendar copy but remembers the calendar, so re-scheduling
-    republishes there.
+    republishes there. The item gets a new `id` (`deletedIds` holds the event
+    id) and keeps the event's day as `plannedDate`.
 - **Microtasks on a parked block.** `capture` and `update` both take
   `checklist: {items:[{id?, text}]}` (≤50 items, ≤200 chars each). It
   **replaces the whole list**, so send every item you want kept (keep the ids
   from the read); `items: []` clears them. Template-only — a parked block has no
   occurrence, so there's nothing to tick off until it's scheduled onto the dial
   (§Microtasks). The steps survive the park ↔ place round-trip, so breaking a
-  parked intention down now isn't wasted work — but **ticks don't**: parking a
-  half-done block returns every step un-ticked, since the tray has no
-  occurrence to hold a done-set.
+  parked intention down now isn't wasted work. A `park` also keeps the ticked
+  steps, but the item read does not show them. A later `schedule` as a one-off
+  event gives them back.
 - Every call that writes returns one `undoToken`; `undo` reverses the whole
   call. `schedule` and `park` are also **inverses** for use after the window.
+
+### Inbox Source
+
+`capture` and `capture_text` take an optional `calendarId`, the Source of each
+new item.
+
+| `calendarId` | Effect |
+|---|---|
+| a task list `id` | The item is also created as a task in that list. The id must be a writable task list from `integrations.sources[].calendars[]`. |
+| omitted | The item takes `integrations.defaultCalendarId`. A task list default creates a task for **every** plain capture. A calendar default publishes the item when it is placed. No default: Reassign only. |
+| `null` | Reassign only, also when a default is set or the text names a list. |
+
+- On `capture_text` with no `calendarId`, the AI sends an item to a list only
+  when the text names that list ("add to Todoist Work: call the bank"). It
+  never picks a list from the topic.
+- A list id on a plan with no sync access, or a list that cannot take a new
+  item, is a `validation` row.
+- The task is created after the call returns. A failed create leaves the item
+  in Reassign only. The undo deletes the task in its app (Linear closes it).
+- The item read in `get_schedule` does not show the Source of an item.
+- Send a `calendarId` only when the user named the list. Tell the user when a
+  task list default will also create the task.
 
 ### Captured from a page
 
@@ -481,14 +516,19 @@ Treat the tray as a first-class part of the plan, not a side list:
    Each request has `name`, an integer `durationMinutes` (5–1440), and **one**
    of two forms. The tool does no date parsing.
    - An exact `start` (local `"YYYY-MM-DDTHH:MM"`). A free `start` books at
-     once; a taken one returns alternatives.
+     once. A taken one is a `conflict` error row with `conflicts` and up to 5
+     `nearestSlots`, and no `commitToken`. To take a nearest slot, send its
+     `start` as a new exact request.
    - A window: `earliest` + `latest` (local datetimes, at most 24 hours apart;
      the window may cross midnight). "Tomorrow afternoon" →
      `earliest "<date>T13:00"`, `latest "<date>T18:00"`.
    A request with both forms is rejected, and so is `autoCommitBest` with
-   `start`. The search skips time that is already past. Attach an area/type by
+   `start`. The search skips time that is already past. Today, a start must be
+   more than 5 minutes after `now`. A window with no room after that point is
+   `validation`, not `conflict`. Attach an area/type by
    `areaId`/`activityTypeId`, set `kind`, add `notes`, and make it repeat with an
-   RRULE `recurrence`.
+   RRULE `recurrence`. `calendarId` and `mirrorCalendarIds` work as on a
+   `write_events` create (references/calendars.md §Calendar targets).
 3. A window request returns ranked `options` (each a `start`/`end` span) plus
    a `commitToken` and `expiresAt`, **also when only one slot fits**. Only
    `autoCommitBest:true` books the top option at once. Use it for an authorized
@@ -499,16 +539,21 @@ Treat the tray as a first-class part of the plan, not a side list:
    `confirm_schedule` with `items[]` = `{token, choice}`
    (0-based; omit `choice` for the best fit). It re-checks conflicts before
    committing. A token expires at `expiresAt` (about 10 minutes); an expired
-   token fails with `not_found` and needs a fresh `schedule` call. Set
+   token fails with `not_found` and needs a fresh `schedule` call. A token
+   that is already committed fails: use its `undoToken` to reverse it. Set
    `render:true` to repaint an open dial in the same call. Recurring proposals
    are checked across a bounded conflict horizon, not forever.
 6. Allow transitions and uncertainty using the user's preferences and past
    durations; suggest a modest buffer where needed (references/adhd-methods.md).
-7. Inspect each `results[]` row by its 0-based `index`: a request may book,
-   propose, or fail independently. A booked row has `result.event`. Do not
-   rebook successful rows after a partial failure. A call that booked something
-   returns one `undoToken`; it deletes the events that call booked and voids its
-   open proposals. A `confirm_schedule` call returns its own `undoToken`.
+7. Inspect each `results[]` row by its 0-based `index`. A booked row has
+   `result.event`. `schedule` and `confirm_schedule` are atomic by default: when
+   one row fails, nothing is written, the other rows are `skipped`, and there is
+   no `undoToken`. Fix the failed row and send the call again. Set
+   `partial:true` to keep the rows that succeed. A row with `replayed: true`
+   stays `ok` because an earlier call booked it; do not book it again. A call
+   that booked something returns one `undoToken`; it deletes the events that
+   call booked and voids its open proposals. A `confirm_schedule` call returns
+   its own `undoToken`.
 
 ## Workflow: find time
 
@@ -556,7 +601,8 @@ Treat the tray as a first-class part of the plan, not a side list:
   `scope:"future"` to an occurrence id for that occurrence and every later one.
   `scope` has no other value. Do not build the `@date` yourself; copy it from a
   read. A changed occurrence keeps the id of its **original** date, also after
-  it moved to another day. The series id is the part before `@`.
+  it moved to another day. Each occurrence also carries `seriesId` and
+  `originalDate` (output-only); they equal the two parts of its id.
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
   it is refused. Series-level fields (`calendarId`, `mirrorCalendarIds`,
@@ -569,9 +615,14 @@ Treat the tray as a first-class part of the plan, not a side list:
   `from`+`to`; `clear` keeps `readOnly` events (`skippedReadOnly`).
 - Create areas/types with `manage_categories` before you
   reference them; un-timed blocks go through `manage_backlog` (§Backlog).
-- `find_event` finds an event by name; on `ambiguous: true`, ask.
+- `find_event` finds an event by name; on `ambiguous: true`, ask. It returns
+  one event per series: the best-matched occurrence, so a renamed occurrence
+  that the query names wins. On a tie, the occurrence nearest to today wins.
 - For recurring masters (rule, anchor span, next occurrence, override counts)
-  set `includeSeries:true` → get_schedule returns a `series` array.
+  set `includeSeries:true` → get_schedule returns a `series` array. A row also
+  has `kind`, `source`, `areaId`, `activityTypeId`, and the calendar fields
+  (`calendarId`, `mirrorCalendarIds`, `readOnly`). It has no `notes`; read
+  them from the events.
 - Reflection (§Reflection) and microtasks (§Microtasks) use the `reflect` and
   `checklist` ops of the same tool.
 
