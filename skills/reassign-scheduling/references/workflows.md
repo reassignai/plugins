@@ -206,7 +206,7 @@ SKILL.md §Backlog.
    forward.
 4. **Re-plan overdue blocks.** An overdue block outlived its planned
    window — offer to place it, re-plan it, or return it to Someday per
-   SKILL.md §Backlog (a task-app-linked block's dates are provider-owned;
+   SKILL.md §Backlog (a recurring task's date is provider-owned;
    see references/calendars.md).
 5. **Prune.** Drop a dead intention with `remove`; edit one in place with
    `update`. Each call returns one `undoToken`.

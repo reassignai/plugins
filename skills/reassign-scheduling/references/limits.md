@@ -23,7 +23,7 @@ A `discard` of a day with nothing recorded succeeds and has no `undoToken`.
 
 | code | what it means | next action |
 |---|---|---|
-| `permission` | the plan does not include this (the Pro gate), or the item is provider-owned (a Todoist/TickTick date) | relay the message; offer an upgrade only for the Pro gate |
+| `permission` | the plan does not include this (the Pro gate), or the item is provider-owned (a recurring task date) | relay the message; offer an upgrade only for the Pro gate |
 | `scope` | the connection lacks this OAuth scope | reconnect with the needed permission |
 | `read_only` | the event or requested field is not writable here | use the owning calendar/task app |
 | `conflict` | the requested time is taken, or a short busy state blocks the write | choose another slot; retry a busy state once |

@@ -404,10 +404,9 @@ access as the rest of MCP.
     `areaId`/`activityTypeId` clears the link. `plannedDate: null` moves it back
     to Someday (clearing any window end); `plannedUntil: null` collapses the
     window to its single day; a set `plannedUntil` must fall after the planned
-    day. On a **task-app-linked** block, the planned date follows the provider
-    rules in references/calendars.md: Google Tasks, Microsoft To Do, and Linear
-    sync one date both ways (no window); a Todoist or TickTick date is refused
-    with `permission` and must be changed in that app.
+    day. On a **task-app-linked** block, `manage_backlog` writes the planned
+    date or window back; a recurring task's date is provider-owned and refused
+    with `permission` (the user changes it in that app — references/calendars.md).
     `sourceUrl: null` clears a stale link off a block the user is keeping.
   - `remove` — delete one by `id`.
   - `schedule` — **place** a parked block (`id`) on the dial at `start` (a
