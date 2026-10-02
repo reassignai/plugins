@@ -53,7 +53,7 @@ user's own copy**, so the returned id may differ from the one you passed — eac
 result reports the effective id (and `forkedFrom`). Always read the id back from
 the response rather than assuming it's unchanged. A write that still sends the
 global id in `areaId` or `activityTypeId` links to the fork of the user. This
-applies to `write_events`, `manage_inbox`, `schedule_events`, and `reassignTo`.
+applies to `write_events`, `manage_inbox`, and `reassignTo`.
 
 ## Deleting safely
 

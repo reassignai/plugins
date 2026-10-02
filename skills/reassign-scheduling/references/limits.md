@@ -77,24 +77,18 @@ are `error` rows. With `partial:true`, inspect the rows and retain successes.
 An op that is not valid is an `error` row with `validation`, not a failure of
 the whole call. A batch whose writes landed is never rejected, also when the
 read-back of a row fails (an `internal` row).
-`schedule_events` and `confirm_schedule` are atomic by default too: one failed row
-writes nothing, and the other rows are `skipped`. Set `partial:true` for
-best effort. A replayed `schedule_events` row stays `ok` with `replayed: true`, because
-an earlier call booked it. An `ok` proposal is not yet a booking.
 
 For an uncertain write outcome, read the affected schedule or Inbox before
-retrying. Do not blindly repeat creates. For `schedule_events`, preserve the exact
-request and `requestId` (the server replays only by `requestId`, within 60
-seconds); for feedback, preserve `submissionId` and content. A limited retry is
-appropriate for a transient failure; if it fails again, keep the intended
-change/draft and explain the blocker instead of looping. An expired proposal
-needs a new `schedule_events`, not another `confirm_schedule`.
+retrying. Do not blindly repeat creates. `write_events` has no `requestId`
+replay field. For feedback, preserve `submissionId` and content. A limited
+retry is appropriate for a transient failure; if it fails again, keep the
+intended change/draft and explain the blocker instead of looping.
 
 ## Undo
 
-`write_events`, `delete_events`, `schedule_events`, `confirm_schedule`,
-`manage_inbox`, `manage_categories`, and `review_day` return one `undoToken`
-and `expiresAt` (30 minutes) when they change data. A call that changed
+`write_events`, `delete_events`, `manage_inbox`, `manage_categories`, and
+`review_day` return one `undoToken` and `expiresAt` (30 minutes) when they
+change data. A call that changed
 nothing, or a rejected batch, has no token. The server records the undo after
 the change lands. When that record fails, the change stays and the result has
 no `undoToken`: tell the user that this change has no undo. `undo_changes` takes

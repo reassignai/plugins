@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.15.0"
+  version: "1.16.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -95,8 +95,8 @@ with access: recurrence, backlog, focus intervals, and microtasks are included.
 ## Event kinds
 
 Every event has a `kind`: `blocking`, `non_blocking`, or `reference`. Each read
-event carries it. Set it with `kind` on a `write_events` create/update, a
-`schedule_events` request, or a `manage_inbox` capture/update.
+event carries it. Set it with `kind` on a `write_events` create/update or a
+`manage_inbox` capture/update.
 
 - **blocking** (default) — occupies time, cannot overlap; counts in
   `loadByArea`/`loadByActivityType` and consumes free slots.
@@ -223,7 +223,7 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   with `readOnly: true` is from a calendar the user doesn't own — **never edit
   or delete it**; the change would silently revert.
 - Editing or creating a calendar-linked event (or any event under the user's
-  default calendar) through `write_events`/`schedule_events`, and deleting one
+  default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
   like editing on the dial. You don't call a separate sync tool.
 - `integrations` carries connected `sources` (`provider`, `status`,
@@ -443,51 +443,35 @@ Treat the tray as a first-class part of the plan, not a side list:
 
 ## Workflow: schedule a block
 
-1. `get_schedule` (`from` = `to` = the day) to anchor `now` and
-   load.
-2. Resolve any relative phrasing yourself ("tomorrow", "after lunch") into
-   structured fields, then call `schedule_events` with `requests[]`.
-   Each request has `name`, an integer `durationMinutes` (5–1440), and **one**
-   of two forms. The tool does no date parsing.
-   - An exact `start` (local `"YYYY-MM-DDTHH:MM"`). A free `start` books at
-     once. A taken one is a `conflict` error row with `conflicts` and up to 5
-     `nearestSlots`, and no `commitToken`. To take a nearest slot, send its
-     `start` as a new exact request.
-   - A window: `earliest` + `latest` (local datetimes, at most 24 hours apart;
-     the window may cross midnight). "Tomorrow afternoon" →
-     `earliest "<date>T13:00"`, `latest "<date>T18:00"`.
-   A request with both forms is rejected, and so is `autoCommitBest` with
-   `start`. The search skips time that is already past. Today, a start must be
-   more than 5 minutes after `now`. A window with no room after that point is
-   `validation`, not `conflict`. Attach an area/type by
-   `areaId`/`activityTypeId`, set `kind`, add `notes`, and make it repeat with an
-   RRULE `recurrence`. `calendarId` and `mirrorCalendarIds` work as on a
-   `write_events` create (references/calendars.md §Calendar targets).
-3. A window request returns ranked `options` (each a `start`/`end` span) plus
-   a `commitToken` and `expiresAt`, **also when only one slot fits**. Only
-   `autoCommitBest:true` books the top option at once. Use it for an authorized
-   routine booking; leave it off to compare options.
-4. Set a `requestId` so a retry doesn't double-book. Only `requestId` replays
-   (60 seconds); a request without one is always new (references/limits.md).
-5. For proposals, show the best fit and one useful alternative, then
-   `confirm_schedule` with `items[]` = `{token, choice}`
-   (0-based; omit `choice` for the best fit). It re-checks conflicts before
-   committing. A token expires at `expiresAt` (about 10 minutes); an expired
-   token fails with `not_found` and needs a fresh `schedule_events` call. A token
-   that is already committed fails: use its `undoToken` to reverse it. Set
-   `render:true` to repaint an open dial in the same call. Recurring proposals
-   are checked across a bounded conflict horizon, not forever.
-6. Allow transitions and uncertainty using the user's preferences and past
-   durations; suggest a modest buffer where needed (references/adhd-methods.md).
-7. Inspect each `results[]` row by its 0-based `index`. A booked row has
-   `result.event`. `schedule_events` and `confirm_schedule` are atomic by default:
-   when one row fails, nothing is written, the other rows are `skipped`, and there is
-   no `undoToken`. Fix the failed row and send the call again. Set
-   `partial:true` to keep the rows that succeed. A row with `replayed: true`
-   stays `ok` because an earlier call booked it; do not book it again. A call
-   that booked something returns one `undoToken`; it deletes the events that
-   call booked and voids its open proposals. A `confirm_schedule` call returns
-   its own `undoToken`.
+1. `get_schedule` (`from` = `to` = the day) to anchor `now`, `timezone`,
+   existing events, `days[].freeSlots`, and load. Read the relevant date range
+   for an overnight block or recurring routine.
+2. Resolve relative phrasing ("tomorrow", "after lunch") against that read.
+   Choose a free span that fits the requested duration and window. Today's
+   free slots already start more than 5 minutes after `now`; refresh an old
+   read before booking. Allow transitions and uncertainty using the user's
+   preferences and past durations (references/adhd-methods.md).
+3. Book within existing authorization. When a choice or tradeoff needs the
+   user, present the best fit and one useful alternative before writing.
+4. For a new block, call `write_events` with
+   `ops:[{op:"create", name, start, end}]`. Both times are local datetimes
+   (`"YYYY-MM-DDTHH:MM"`) in the returned `timezone`; compute `end` from the
+   chosen duration. Attach `areaId`/`activityTypeId`, `kind`, or `notes` as
+   needed. Add an RRULE `recurrence` for a repeat; recurring creates check
+   conflicts across a bounded horizon. Calendar targets follow
+   references/calendars.md §Calendar targets. Set `render:true` to repaint an
+   open dial in the same call.
+   For an existing Inbox item, use `manage_inbox` with a `schedule` op so the
+   intention leaves the tray (§Backlog).
+5. Inspect each `results[]` row by its 0-based `index`. A successful
+   `write_events` create has `result.created`. Writes check conflicts again;
+   a `conflict` row includes `conflicts` and `nearestSlots`. Re-read and choose
+   a fitting span before retrying. The batch is atomic by default: one failed
+   op writes nothing and the other ops are `skipped`. Fix the failed op and
+   resend, or use `partial:true` when keeping successful ops is intended.
+6. Surface the returned `undoToken`. If a write's outcome is uncertain,
+   read the affected schedule before retrying so a create is not duplicated
+   (references/limits.md).
 
 ## Workflow: find time
 
@@ -499,9 +483,9 @@ Treat the tray as a first-class part of the plan, not a side list:
    fill the slot from a parked block before inventing new work — blocks
    planned for that day first, then by importance and fit, matched to the window
    (§Backlog).
-4. Offer the slot; on yes → `schedule_events` →
-   `confirm_schedule` (or `manage_inbox` `schedule` op to place
-   a parked block directly).
+4. Place an authorized new block with `write_events` `create`, using the
+   chosen `start` and `end`. Use a `manage_inbox` `schedule` op for a parked
+   block. If the user still needs to choose, offer the slot before writing.
 
 ## Workflow: review the day / week
 

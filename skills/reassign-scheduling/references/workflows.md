@@ -146,7 +146,7 @@ See references/calendars.md for the full surface. The flow:
    connected. Read `sources[].status`, `defaultCalendarId`, and each event's
    `source`/`calendarId`/`readOnly` before touching anything.
 2. Editing/creating an owned linked event (or one under the default sync
-   calendar) via `write_events`/`schedule_events`, or deleting via `delete_events`,
+   calendar) via `write_events`, or deleting via `delete_events`,
    **propagates to the provider automatically** — no separate sync step. Surface
    the `undoToken` as usual.
 3. **Never** edit, move, or delete a `readOnly` event (a calendar the user

@@ -154,7 +154,7 @@ On each event in `get_schedule` / `find_event`:
 There is **no separate sync tool**. When the user has a calendar connected:
 
 - Creating or editing a calendar-linked event — or any event created under the
-  `defaultCalendarId` — via `write_events` or `schedule_events` **pushes the change
+  `defaultCalendarId` — via `write_events` **pushes the change
   to the provider**, exactly like editing on the dial.
 - Deleting a linked event via `delete_events` removes it from the provider too.
 - This includes recurring series: whole-series, one-occurrence, and
