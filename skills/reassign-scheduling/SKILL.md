@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.16.0"
+  version: "1.17.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -52,6 +52,8 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   single call it anchors `now`, the user's `areas`, `activityTypes`,
   `userPreferences`, existing events, and the day's free slots + area/type
   load. `from` and `to` are required; use the same date for one day.
+  Optional `minDuration` (integer minutes, 1–1440) filters only `freeSlots`;
+  it leaves events visible and does not book or resize a slot.
   It also reports `backlogCount` (parked, un-timed blocks); set
   `includeBacklog:true` for the items, then `backlogPlannedOn` for the blocks
   planned for a day (see §Backlog). Use `find_event {query}` to search events
@@ -81,7 +83,7 @@ MCP requires an active trial or subscription. The current plan is checked on
 rejected before a tool runs. A lapsed trial does not become a free account.
 There are no separate feature gates or plan-based date horizons for callers
 with access: recurrence, backlog, focus intervals, and microtasks are included.
-`review_day` `confirm` still requires a past date.
+`reflect` and `review_day` `confirm` require a past date in the user's timezone.
 
 - A subscription rejection is HTTP 403 with “Reassign needs an active
   subscription.” Relay it; a one-off, shorter date range, or different tool
@@ -260,8 +262,9 @@ references/reflection.md for the full detail):
   to refresh. `{action:"discard"}` fully resets the day: it clears every mark and
   removes events added only as part of the reflection. Both return an
   `undoToken`.
-- `review_day` `confirm` requires a **past** date. Today or a future day is
+- `reflect` and `review_day` `confirm` require a **past** date. Today or a future day is
   `validation` (no subscription lifts it, so do not offer an upgrade).
+  An event that ended earlier today still cannot be marked through MCP.
   A `confirm` on a day with no marks still confirms, but adds a `warning`: the
   score counts each unmarked event as kept. Relay the warning.
   `discard` works on any day, also on today's check-offs. A `discard` of a
@@ -463,12 +466,16 @@ Treat the tray as a first-class part of the plan, not a side list:
    open dial in the same call.
    For an existing Inbox item, use `manage_inbox` with a `schedule` op so the
    intention leaves the tray (§Backlog).
+   To check proposed event ops first, use `write_events` with `dryRun:true`.
+   Valid rows are `skipped`; nothing is written or reserved. See references/limits.md.
 5. Inspect each `results[]` row by its 0-based `index`. A successful
    `write_events` create has `result.created`. Writes check conflicts again;
    a `conflict` row includes `conflicts` and `nearestSlots`. Re-read and choose
    a fitting span before retrying. The batch is atomic by default: one failed
    op writes nothing and the other ops are `skipped`. Fix the failed op and
    resend, or use `partial:true` when keeping successful ops is intended.
+   An `ok` row with `warnings:["classification_pending"]` may have its area,
+   activity type, or kind changed by AI later; re-read when those values matter.
 6. Surface the returned `undoToken`. If a write's outcome is uncertain,
    read the affected schedule before retrying so a create is not duplicated
    (references/limits.md).
@@ -520,7 +527,9 @@ Treat the tray as a first-class part of the plan, not a side list:
   `scope` has no other value. Do not build the `@date` yourself; copy it from a
   read. A changed occurrence keeps the id of its **original** date, also after
   it moved to another day. Each occurrence also carries `seriesId` and
-  `originalDate` (output-only); they equal the two parts of its id.
+  `originalDate` (output-only); they equal the two parts of its id. Changed
+  occurrences keep the series' `recurrence`; see references/workflows.md for
+  `scope:"future"` edits at an override.
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
   it is refused. Series-level fields (`calendarId`, `mirrorCalendarIds`,
@@ -541,7 +550,7 @@ Treat the tray as a first-class part of the plan, not a side list:
   set `includeSeries:true` → get_schedule returns a `series` array. A row also
   has `kind`, `source`, `areaId`, `activityTypeId`, and the calendar fields
   (`calendarId`, `mirrorCalendarIds`, `readOnly`). It has no `notes`; read
-  them from the events.
+  them from the events. A moved occurrence's `nextOccurrence` uses its actual day.
 - Reflection (§Reflection) and microtasks (§Microtasks) use the `reflect` and
   `checklist` ops of the same tool.
 
@@ -569,14 +578,15 @@ references/limits.md for subscription access and how to read a refusal.
 ## Feedback
 
 If a tool loops, needs a workaround, or the user hits a limitation in Reassign
-itself, report it with `send_feedback`. Send one concise report
-per issue with `kind` (`bug`/`idea`/`other`) and `message`; avoid private schedule
-contents. Feedback is delivered to the team through transactional email.
+itself, collect the session's feedback into one `send_feedback` call:
+`{reports:[{kind:"bug"|"idea"|"other", message}], submissionId?}`. Use one
+concise item per issue, 1–10 reports per call, each message 1–4000 characters;
+avoid private schedule contents. The call sends one team email and returns `{}`
+on acceptance. The user gets at most one acknowledgment email per UTC day.
 Use an optional UUID `submissionId`; retry with the same UUID and identical
-content within 24 hours. A new report needs a new UUID. On `rate_limited`, keep
-the draft and wait as directed; on a transient delivery failure, retry the same
-submission without claiming it was sent until the tool confirms acceptance.
-The tool returns `{}` when it accepts the report.
+reports within 24 hours. A new submission needs a new UUID. On `rate_limited`,
+keep the draft and wait as directed. Retry a transient failure at most once;
+claim acceptance only after the tool confirms it (references/limits.md).
 
 The server can also list `get_more_tools {context}`. It is not a Reassign
 tool: it records a missing-capability report (the first 500 characters of

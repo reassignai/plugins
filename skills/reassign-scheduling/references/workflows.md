@@ -112,6 +112,18 @@ and activity types, `userPreferences`, and the day's load. Use `write_events` fo
 4. To stop a series repeating, `update` the bare series id with
    `recurrence: null`.
 
+An occurrence moved to another day keeps its original `seriesId@YYYY-MM-DD`
+id and `originalDate`; use its returned `start`/`end` for the actual span. An
+override still carries the series' `recurrence` and inherits its calendar and
+mirror fields unless it has its own calendar. `series[].nextOccurrence` counts
+a moved occurrence on its actual day.
+
+When `scope:"future"` starts at an already changed occurrence, the boundary
+occurrence receives the edit too. A new `start` or `end` replaces its override
+with the new series time. With other edits, it keeps its own time and takes the
+sent fields; the result echoes that occurrence. Later moved overrides retain
+their fields. Re-read the range after the split before making another edit.
+
 ## Bulk reshuffle of a crowded day
 
 1. `get_schedule` for the day; identify what's mis-placed against energy/load.

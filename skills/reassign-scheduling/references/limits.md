@@ -15,7 +15,8 @@ reconnecting do not bypass it. Other 403 responses can have different causes
 (such as a rejected origin); do not treat every 403 as a subscription failure.
 A revoked or invalid authorization instead needs authentication/reconnection.
 
-`review_day` `confirm` still requires a past date. Today or a future day is a
+`write_events` `reflect` and `review_day` `confirm` require a past date in the
+user's timezone, even if today's event has ended. Today or a future day is a
 `validation` error, not a reason to upgrade. `discard` works on any day.
 A `discard` of a day with nothing recorded succeeds and has no `undoToken`.
 
@@ -46,9 +47,14 @@ the same denied call cannot fix account access, scopes, or ownership.
 ## Where the code lives
 
 - A batch row is `{index, status: "ok" | "error" | "skipped", result?, error?,
-  reason?}`. A failed row has `error: {code, message, conflicts?,
+  reason?, warnings?}`. A failed row has `error: {code, message, conflicts?,
   nearestSlots?}`. A `conflict` names each clash (the stored `id`, or
   `batchIndex` for a clash inside the same call) and offers `nearestSlots`.
+- A successful event-write row can carry `warnings:["classification_pending"]`
+  when it queued AI classification and the account permits it. The write landed,
+  but its area, activity type, or kind may change after the reply. Re-read when
+  the current categorization matters; the warning does not promise a change or
+  give a completion time.
 - A whole-tool failure uses `isError:true` and one text block. The text is
   the JSON envelope `{"error": {"code", "message"}}`, also for the prose tool
   `show_day`. `_meta["reassign/error"].code`
@@ -64,9 +70,9 @@ the same denied call cannot fix account access, scopes, or ownership.
   `batch_rejected` when they differ. `_meta` carries a code only when the rows
   share one. Mixed failures have no single remedy: inspect each row.
 - HTTP/JSON-RPC transport failures happen outside these tool envelopes.
-- A tool schema can list `llm_model` (required). It is an analytics field;
-  the server does not enforce it. Set it to your model id. There is no
-  `conversation_id`: a result has only its own content block.
+- Current tool schemas include neither `llm_model` nor `conversation_id`. Model
+  capture is disabled, and a result has only its own content block. Refresh
+  stale tool schemas and omit these fields from calls.
 
 ## Batches and retries
 
@@ -77,6 +83,26 @@ are `error` rows. With `partial:true`, inspect the rows and retain successes.
 An op that is not valid is an `error` row with `validation`, not a failure of
 the whole call. A batch whose writes landed is never rejected, also when the
 read-back of a row fails (an `internal` row).
+
+### Check event ops without applying them
+
+`write_events` accepts optional top-level `dryRun:true` with the usual `ops`.
+Use it when checking a proposed batch would help; it is not a required step for
+an already authorized write. It still needs the connection's `events:write` scope.
+
+- The server plans the ops against existing events and each other, without
+  changing data or issuing an undo token. A valid op returns `status:"skipped"`
+  with `reason:"Dry run: this op is valid and was not applied."`; it has no
+  created/updated event result.
+- Invalid ops retain their usual `error` rows, including `conflicts` and
+  `nearestSlots` when applicable. All-valid dry runs succeed with skipped rows;
+  any failed op makes the dry run an `isError:true` rejected batch. Inspect the
+  reasons and errors instead of treating every skipped row as a rollback.
+- To apply the authorized ops, send them again without `dryRun:true`. The
+  server checks current conflicts again; a dry run reserves no time and has no
+  commit token. `delete_events` and `manage_inbox` do not accept this flag.
+
+### Retry after an uncertain result
 
 For an uncertain write outcome, read the affected schedule or Inbox before
 retrying. Do not blindly repeat creates. `write_events` has no `requestId`

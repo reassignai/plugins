@@ -141,6 +141,8 @@ On each event in `get_schedule` / `find_event`:
   means the event is on the dial only. `mirrorCalendarIds` lists the one-way
   copy calendars, omitted when none. These ids do not by themselves prove that
   remote delivery has finished. Look up a calendar's name in `integrations`.
+  Changed recurring occurrences inherit the series' calendar and mirrors unless
+  the occurrence has its own calendar.
 - `readOnly: true` — the event is from a calendar the user **doesn't own**.
   **Never edit, move, or delete it** via `write_events`/`delete_events`: the
   provider owns the truth, so the change silently reverts. Surface it as context

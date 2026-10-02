@@ -51,6 +51,11 @@ Record how a past event went with an op on the normal batch write — it rides t
 same atomic plan→apply→undo path as `create`/`update`/`shift`, so marks
 batch together and return an `undoToken`.
 
+The occurrence must be on a past day in the user's timezone. A `reflect` op for
+today or a future day fails with `validation`, including an event that already
+ended today. Read any existing marks, and wait until the next day to record
+today's reflection through MCP.
+
 ```
 { op: "reflect", id, status, actualStart?, actualEnd? }
 ```
