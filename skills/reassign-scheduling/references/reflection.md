@@ -115,7 +115,7 @@ review_day { date, action: "confirm" | "discard" }
   reflection. Use it to start a day's reflection over, or to drop one confirmed
   by mistake.
 - Both go through the scoped write path and are **reversible** via the returned
-  `undoToken` (the standard 30-minute window via `undo`). Because
+  `undoToken` (the standard 30-minute window via `undo_changes`). Because
   `discard` is destructive, confirm intent before discarding a day the user has
   already reviewed.
 

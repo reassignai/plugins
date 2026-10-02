@@ -34,7 +34,7 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   `plannedDate`…`plannedUntil` window).
 - **Title, notes, due date, and completion sync both ways**, with these
   differences for the planned date of an Inbox item:
-  - Every task app: a `manage_backlog` `update` of `plannedDate` or
+  - Every task app: a `manage_inbox` `update` of `plannedDate` or
     `plannedUntil` writes back to the task app.
   - A recurring task: the date is provider-owned. An update of it is refused
     with `permission` (not an access problem; do not offer an upgrade). The
@@ -154,7 +154,7 @@ On each event in `get_schedule` / `find_event`:
 There is **no separate sync tool**. When the user has a calendar connected:
 
 - Creating or editing a calendar-linked event — or any event created under the
-  `defaultCalendarId` — via `write_events` or `schedule` **pushes the change
+  `defaultCalendarId` — via `write_events` or `schedule_events` **pushes the change
   to the provider**, exactly like editing on the dial.
 - Deleting a linked event via `delete_events` removes it from the provider too.
 - This includes recurring series: whole-series, one-occurrence, and

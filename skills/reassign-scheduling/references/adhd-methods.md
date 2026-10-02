@@ -43,7 +43,7 @@ and suggest a margin; do not silently inflate a duration the user specified.
 
 ## Capture + shutdown
 
-Put interruptions into the Inbox with `manage_backlog` capture when authorized,
+Put interruptions into the Inbox with `manage_inbox` capture when authorized,
 then return to the active task. Avoid creating a second parking-lot system in
 notes that duplicates the Inbox. Before capturing, check for an existing item
 when duplication is plausible.
@@ -61,7 +61,8 @@ whole task remains unfinished; check what follows and whether it still matters.
 
 ## Chronotype / energy placement
 
-Use stated energy and capacity first. If helpful, `get_energy` supplies forecast
+Use stated energy and capacity first. If helpful, `get_schedule` with
+`includeEnergy:true` and `from` = `to` supplies forecast
 peak/dip windows; treat them as planning hints, not a diagnosis or certainty.
 Fit demanding work into a suitable window and batch lighter admin where useful.
 Do not impose a 90-minute block on someone who wants a short start. Flag a

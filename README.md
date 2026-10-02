@@ -33,6 +33,7 @@ plugins/                                  ← repo root = plugin root
 │       └── references/
 │           ├── adhd-methods.md
 │           ├── focus.md             ← focus intervals, live pauses, and saved rhythms
+│           ├── context.md           ← event and Inbox search, weather, and energy
 │           ├── workflows.md
 │           ├── taxonomy.md
 │           ├── calendars.md          ← calendar and task-app sync, import policies, event kinds, mirroring

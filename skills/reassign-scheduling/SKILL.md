@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.14.0"
+  version: "1.15.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -53,8 +53,9 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   `userPreferences`, existing events, and the day's free slots + area/type
   load. `from` and `to` are required; use the same date for one day.
   It also reports `backlogCount` (parked, un-timed blocks); set
-  `includeBacklog:true` for the items, then `backlogQuery` to find one by name
-  or `backlogPlannedOn` for the blocks planned for a day (see §Backlog).
+  `includeBacklog:true` for the items, then `backlogPlannedOn` for the blocks
+  planned for a day (see §Backlog). Use `find_event {query}` to search events
+  and Inbox items by name.
   On a later read in the same task, `includeLookups:false` leaves out `areas`,
   `activityTypes`, and `integrations`. `userPreferences` and `timezone` stay.
 - A date is `YYYY-MM-DD`. A time is a local datetime `YYYY-MM-DDTHH:MM` in the
@@ -64,7 +65,7 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
 - Copy ids and values from a read into a write as they are. The API rejects
   unknown keys, old field names, and other formats; it does not coerce them.
 - Surface returned undo tokens — each write that changes data returns one
-  `undoToken` + `expiresAt` (a UTC instant, 30 minutes) for `undo`. Do not
+  `undoToken` + `expiresAt` (a UTC instant, 30 minutes) for `undo_changes`. Do not
   invent a token. A token is `stale` when a row that the write touched
   changed again later; then the undo changes nothing (references/limits.md).
 - Render with `show_day` when the user wants to *see* the plan —
@@ -86,8 +87,8 @@ with access: recurrence, backlog, focus intervals, and microtasks are included.
   subscription.” Relay it; a one-off, shorter date range, or different tool
   cannot bypass it. Reconnecting does not restore subscription access.
 - Tool refusals carry a per-row `error.code` or a whole-tool
-  `{"error": {"code", "message"}}` JSON text (`isError:true`), also on the
-  prose tools. Distinguish account `permission`, connection `scope`, and
+  `{"error": {"code", "message"}}` JSON text (`isError:true`), also on
+  `show_day`. Distinguish account `permission`, connection `scope`, and
   resource `read_only`; they need different remedies. `rate_limited` means wait, not upgrade.
 - See references/limits.md for response shapes, mixed batches, and retries.
 
@@ -95,7 +96,7 @@ with access: recurrence, backlog, focus intervals, and microtasks are included.
 
 Every event has a `kind`: `blocking`, `non_blocking`, or `reference`. Each read
 event carries it. Set it with `kind` on a `write_events` create/update, a
-`schedule` request, or a `manage_backlog` capture/update.
+`schedule_events` request, or a `manage_inbox` capture/update.
 
 - **blocking** (default) — occupies time, cannot overlap; counts in
   `loadByArea`/`loadByActivityType` and consumes free slots.
@@ -222,7 +223,7 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   with `readOnly: true` is from a calendar the user doesn't own — **never edit
   or delete it**; the change would silently revert.
 - Editing or creating a calendar-linked event (or any event under the user's
-  default calendar) through `write_events`/`schedule`, and deleting one
+  default calendar) through `write_events`/`schedule_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
   like editing on the dial. You don't call a separate sync tool.
 - `integrations` carries connected `sources` (`provider`, `status`,
@@ -271,114 +272,48 @@ references/reflection.md for the full detail):
   time. `layer` is also `null` when no planned time had an area. Do not read
   `null` as 0.
 
-## Weather
+## Weather and energy
 
-When the user has a city (saved, or guessed from their timezone), `get_schedule`
-and `show_day` include a one-line `weather` headline for a single requested day
-or today — temp range, condition, rain window, sunset. That's enough to schedule
-around; read it before placing outdoor or weather-sensitive work. The headline is
-omitted for a pure multi-day range (one line can't represent it) and for a
-city-less user.
+Read these through `get_schedule` with `from` = `to` = the requested day:
 
-- Reach for `get_weather` only when an outdoor or weather-
-  sensitive plan needs the hourly detail (a run, commute, picnic, gardening — the
-  exact dry/daylight window), or when the user explicitly asks about the weather.
-  It returns a compact day overview plus a part-of-day breakdown, not an hourly
-  dump. Indoor plans don't need it — the headline already covers a quick glance.
-- It defaults to today and the user's city. Set `date` (ISO `YYYY-MM-DD`) for
-  another day, or `location` (a city/place name) to ask about somewhere else —
-  `location` wins over the saved city, so "weather in London?" works regardless.
-- Use it to bias placement: steer a run into a dry, daylight window; flag when an
-  outdoor block lands in forecast rain and offer to move it. It's read-only and
-  never changes the plan on its own.
+- `includeWeather:true` replaces the `weather` headline with a full forecast
+  string. Use it for outdoor plans or weather questions. Optional
+  `weatherLocation` selects another city; its forecast uses that place's date
+  and timezone, while schedule spans still use the top-level `timezone`.
+- `includeEnergy:true` adds an `energy` report string with forecast peak/dip
+  windows from logged sleep. Use it when alertness matters to placement.
+  Energy is modeled, not measured; with no logged sleep, relay the returned nudge.
+- Both flags can share one call; either flag on a multi-day range is refused.
+  `weatherLocation` requires `includeWeather:true`.
 
-### Planning with weather
-
-Use the forecast to place work, not to moralize about it:
-
-- **Outdoor / exposed blocks** (run, commute, errands, sports, a walk meeting)
-  → the dry, daylight window. If one already sits in forecast rain, flag it and
-  offer a move. This is logistics — be concrete, not preachy.
-- **Daylight is a resource, not just a constraint.** A morning outdoor block in
-  the daylight window doubles as a circadian/energy anchor — pair it with the
-  user's peak window (see references/adhd-methods.md §Chronotype / energy
-  placement) rather than treating sunrise/sunset as trivia.
-- **Don't invent weather-mood rules.** There's no reliable "do deep work when
-  it's raining" theory — the effect is tiny and personal. Only act on a pattern
-  the *user* has stated ("gray days help me focus"); never prescribe one.
-
-## Energy
-
-The user has a forecast daily **energy curve** — when they'll be most alert —
-built from their logged sleep (a two-process circadian + sleep-pressure model),
-any tracked caffeine/intakes, and personalized over time from the energy levels
-they log. Unlike weather, it is **not** folded into `get_schedule`/`show_day`:
-`get_energy` is the only way to read it.
-
-- Reach for `get_energy` when placement should follow alertness
-  (where to put focus/deep work vs. admin/errands) or when the user asks how
-  their energy looks or when they're at their best. It returns a compact day
-  overview — the peak/dip windows, today's current reading + its drivers, and how
-  calibrated the estimate is — not a per-hour dump.
-- It defaults to today and the user's own data. Set `date` (ISO `YYYY-MM-DD`)
-  for another day: a future day forecasts from habitual sleep; a past day is
-  reflection-aware (it reads the actual logged sleep) but energy is still
-  *modeled, not measured* — don't present it as a record of how the day felt.
-- It needs at least one logged night of sleep. With none, it returns a short
-  nudge to log sleep first — relay that, don't fabricate a curve.
-- It's read-only and never changes the plan. The energy curve is also an opt-in
-  **dial layer** (off by default): `show_day` paints it only when the user has
-  enabled the energy layer, but `get_energy` always reads it (calling it is
-  explicit intent).
-- **The in-app curve can differ, by design.** A user can fold a menstrual-cycle
-  rhythm into the energy layer in the app; that term is deliberately absent
-  from `get_energy` — cycle data is health data that never leaves the app, on
-  any AI surface. So the curve you read may sit slightly off the dial an
-  opted-in user sees. Treat the gap as intended, not an error, and never ask
-  for, infer, or record cycle data through any tool.
-
-### Planning with energy
-
-- **Peak → demanding work.** Put deep/focus work and the hardest task ("the
-  frog") in a morning or evening **peak**; steer admin, errands, and low-stakes
-  work into the post-lunch **dip**. This replaces guessing from the user's
-  stated chronotype when real data exists — see references/adhd-methods.md
-  §Chronotype / energy placement.
-- **Flag, don't silently place.** If demanding work already sits in a known
-  dip, flag it and offer a move into the nearest peak (a SKILL.md "what not to
-  do" rule).
-- **Pair with weather and daylight.** A morning outdoor block in the daylight
-  window doubles as a circadian anchor — line it up with the morning peak rather
-  than treating the two layers separately.
+See [references/context.md](references/context.md) for forecast handling,
+energy privacy, and search filters and pagination.
 
 ## Backlog (parked blocks)
 
-The **backlog** is the user's inbox of *parked blocks* — intentions captured
-without a time yet ("wash the car", "call the dentist"). It's the ADHD
-capture/externalize move made concrete: get a task out of the head and onto a
-tray without committing to a slot. A parked block can also carry a **planned
-day** (`plannedDate`) or a flexible window (`plannedDate` + inclusive
-`plannedUntil` — "sometime Fri–Sun"): still untimed, but grouped under that day
-in the tray instead of Someday. It uses the same active-trial/subscription
-access as the rest of MCP.
+The **backlog** is the user's Inbox of *parked blocks*: intentions captured
+without a time yet ("wash the car", "call the dentist"). An optional
+`plannedDate`, or a window with inclusive `plannedUntil` ("sometime Fri–Sun"),
+groups the untimed block under a day instead of Someday. Inbox uses the same
+active-trial/subscription access as the rest of MCP.
 
 - **Read** through `get_schedule`: `backlogCount` is the true tray total (absent
   for an empty tray). `includeBacklog:true` gives items, top first, 50 a page.
   Each item is `{id, name, kind, areaId, activityTypeId}`, plus `notes`,
   `sourceUrl`, `durationMinutes`, `plannedDate`, `plannedUntil`, and
   `checklist` when set. There is no `overdue` flag: compare the end of the
-  planned day/window with `now` yourself. The filters need `includeBacklog:true`:
-  `backlogQuery` finds items by name, and `backlogPlannedOn` (ISO date) narrows
-  to the blocks whose planned day or window covers that day. They compose. An
-  **overdue block never matches a today/future filter** (its window has
-  passed); use an unfiltered read when looking for overdue work. There is no
-  separate read tool — don't call `manage_backlog` just to look.
+  planned day/window with `now` yourself. `backlogPlannedOn` (ISO date) needs
+  `includeBacklog:true` and narrows to the blocks whose planned day or window
+  covers that day. Use `find_event {query}` for name search (references/context.md).
+  An **overdue block never matches a today/future filter** (its window has
+  passed); use an unfiltered read when looking for overdue work.
+  `manage_inbox` is the write surface.
 - **Pagination.** Item reads return `nextBacklogOffset` (null when complete),
-  and `backlogMatchedCount` only when a filter is set. Follow a non-null offset
-  with `backlogOffset` and the same filters until the requested scope is
+  and `backlogMatchedCount` only when `backlogPlannedOn` is set. Follow a non-null
+  offset with `backlogOffset` and the same filter until the requested scope is
   covered; the first page is not the whole Inbox. After a tray write, restart
   pagination because its order may change.
-- **Write** through `manage_backlog` (`ops`, ≤50, atomic by
+- **Write** through `manage_inbox` (`ops`, ≤50, atomic by
   default — set `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
     `durationMinutes` (5–1440), `kind` (default `blocking`),
@@ -404,7 +339,7 @@ access as the rest of MCP.
     `areaId`/`activityTypeId` clears the link. `plannedDate: null` moves it back
     to Someday (clearing any window end); `plannedUntil: null` collapses the
     window to its single day; a set `plannedUntil` must fall after the planned
-    day. On a **task-app-linked** block, `manage_backlog` writes the planned
+    day. On a **task-app-linked** block, `manage_inbox` writes the planned
     date or window back; a recurring task's date is provider-owned and refused
     with `permission` (the user changes it in that app — references/calendars.md).
     `sourceUrl: null` clears a stale link off a block the user is keeping.
@@ -431,7 +366,7 @@ access as the rest of MCP.
   parked intention down now isn't wasted work. A `park` also keeps the ticked
   steps, but the item read does not show them. A later `schedule` as a one-off
   event gives them back.
-- Every call that writes returns one `undoToken`; `undo` reverses the whole
+- Every call that writes returns one `undoToken`; `undo_changes` reverses the whole
   call. `schedule` and `park` are also **inverses** for use after the window.
 
 ### Inbox Source
@@ -492,8 +427,8 @@ Treat the tray as a first-class part of the plan, not a side list:
   follow pagination for the complete tray with its planned fields. Offer blocks planned for
   today and overdue ones first, then by importance, dependencies, and fit, honoring
   area/type + energy (demanding parked work → a peak; admin → the dip). Don't
-  place silently; propose, then `schedule`. Reserve `backlogPlannedOn` for the
-  direct question ("what did I plan for Friday?").
+  place silently; propose, then use `manage_inbox` with a `schedule` op. Reserve
+  `backlogPlannedOn` for the direct question ("what did I plan for Friday?").
 - **Surface overdue intentions.** A block whose `plannedUntil` (or
   `plannedDate`, without a window) is before today slipped past its planned
   window. Check whether it still matters, then offer to place it
@@ -511,7 +446,7 @@ Treat the tray as a first-class part of the plan, not a side list:
 1. `get_schedule` (`from` = `to` = the day) to anchor `now` and
    load.
 2. Resolve any relative phrasing yourself ("tomorrow", "after lunch") into
-   structured fields, then call `schedule` with `requests[]`.
+   structured fields, then call `schedule_events` with `requests[]`.
    Each request has `name`, an integer `durationMinutes` (5–1440), and **one**
    of two forms. The tool does no date parsing.
    - An exact `start` (local `"YYYY-MM-DDTHH:MM"`). A free `start` books at
@@ -538,15 +473,15 @@ Treat the tray as a first-class part of the plan, not a side list:
    `confirm_schedule` with `items[]` = `{token, choice}`
    (0-based; omit `choice` for the best fit). It re-checks conflicts before
    committing. A token expires at `expiresAt` (about 10 minutes); an expired
-   token fails with `not_found` and needs a fresh `schedule` call. A token
+   token fails with `not_found` and needs a fresh `schedule_events` call. A token
    that is already committed fails: use its `undoToken` to reverse it. Set
    `render:true` to repaint an open dial in the same call. Recurring proposals
    are checked across a bounded conflict horizon, not forever.
 6. Allow transitions and uncertainty using the user's preferences and past
    durations; suggest a modest buffer where needed (references/adhd-methods.md).
 7. Inspect each `results[]` row by its 0-based `index`. A booked row has
-   `result.event`. `schedule` and `confirm_schedule` are atomic by default: when
-   one row fails, nothing is written, the other rows are `skipped`, and there is
+   `result.event`. `schedule_events` and `confirm_schedule` are atomic by default:
+   when one row fails, nothing is written, the other rows are `skipped`, and there is
    no `undoToken`. Fix the failed row and send the call again. Set
    `partial:true` to keep the rows that succeed. A row with `replayed: true`
    stays `ok` because an earlier call booked it; do not book it again. A call
@@ -564,8 +499,8 @@ Treat the tray as a first-class part of the plan, not a side list:
    fill the slot from a parked block before inventing new work — blocks
    planned for that day first, then by importance and fit, matched to the window
    (§Backlog).
-4. Offer the slot; on yes → `schedule` →
-   `confirm_schedule` (or `manage_backlog` `schedule` op to place
+4. Offer the slot; on yes → `schedule_events` →
+   `confirm_schedule` (or `manage_inbox` `schedule` op to place
    a parked block directly).
 
 ## Workflow: review the day / week
@@ -613,10 +548,11 @@ Treat the tray as a first-class part of the plan, not a side list:
 - `delete_events`: `delete` by `id` (same id rules), or `clear` with
   `from`+`to`; `clear` keeps `readOnly` events (`skippedReadOnly`).
 - Create areas/types with `manage_categories` before you
-  reference them; un-timed blocks go through `manage_backlog` (§Backlog).
-- `find_event` finds an event by name; on `ambiguous: true`, ask. It returns
-  one event per series: the best-matched occurrence, so a renamed occurrence
-  that the query names wins. On a tie, the occurrence nearest to today wins.
+  reference them; un-timed blocks go through `manage_inbox` (§Backlog).
+- `find_event {query}` searches both `events` and untimed `inbox` items.
+  `ambiguous` describes event ties only; resolve multiple plausible Inbox
+  matches too. Write an Inbox result with `manage_inbox`. See
+  [references/context.md](references/context.md) for filters and pagination.
 - For recurring masters (rule, anchor span, next occurrence, override counts)
   set `includeSeries:true` → get_schedule returns a `series` array. A row also
   has `kind`, `source`, `areaId`, `activityTypeId`, and the calendar fields
