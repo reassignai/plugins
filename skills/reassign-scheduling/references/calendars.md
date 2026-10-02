@@ -89,14 +89,17 @@ check each source's `status` before describing sync as active. Shape:
   when nothing has been compiled yet.
 - `defaultCalendarId` (optional) — the calendar new dial events publish to
   by default. Absent if the user hasn't set one (or it's no longer writable).
+  It is also the default Source of a new Inbox item: a task list default
+  creates each new capture as a task (SKILL.md §Inbox Source).
 - `sources[]` — one per connected account: `provider`, `status`
   (`connected` is the only one that syncs; also `disconnected`, `error`,
   `pending`, `revoked`), `account` (the account name at the provider, often an
   email), and `calendars[]`. Use `account` to tell apart two calendars with the
   same name.
 - Each calendar: `id`, `name`, `writable` (only a writable calendar is a valid
-  `calendarId`), an optional `timezone` (a fallback when the user has no
-  selected zone), and the import policy (below).
+  `calendarId`), an optional `timezone` (the provider zone of the calendar,
+  information only: every span uses the top-level `timezone`), and the import
+  policy (below).
 
 Use the visible facts to explain where new events sync (`defaultCalendarId`)
 or why a source is not importing (`status` ≠ connected). A source entry alone

@@ -17,6 +17,7 @@ A revoked or invalid authorization instead needs authentication/reconnection.
 
 `review_day` `confirm` still requires a past date. Today or a future day is a
 `validation` error, not a reason to upgrade. `discard` works on any day.
+A `discard` of a day with nothing recorded succeeds and has no `undoToken`.
 
 ## Tool refusal codes
 
@@ -27,14 +28,16 @@ A revoked or invalid authorization instead needs authentication/reconnection.
 | `read_only` | the event or requested field is not writable here | use the owning calendar/task app |
 | `conflict` | the requested time is taken, or a short busy state blocks the write | choose another slot; retry a busy state once |
 | `not_found` | the referenced event, item, area, activity type, day, or token does not exist | re-read and resolve the target |
+| `stale` | an `undo` token whose rows changed again after the write | the undo changed nothing; tell the user and do not retry the token |
 | `validation` | arguments are invalid, contradictory, or use an old field name or format | correct them |
 | `rate_limited` | an abuse/request budget was exceeded | keep the draft and wait as directed |
 | `internal` | a backend operation failed | inspect the result before a bounded retry |
 
 There is no `ambiguous` error code. `find_event` reports a tie as the
-`ambiguous: true` field; ask the user which event they meant. `batch_rejected`
-and `unauthorized` are REST codes; a tool result or batch row never carries
-them.
+`ambiguous: true` field; ask the user which event they meant.
+`batch_rejected` is only the top-level code of a rejected batch whose failed
+rows disagree; a batch row never carries it. `unauthorized` is a REST code; a
+tool result never carries it.
 
 Do not offer an upgrade for `scope`, `read_only`, or `rate_limited`. Repeating
 the same denied call cannot fix account access, scopes, or ownership.
@@ -45,15 +48,22 @@ the same denied call cannot fix account access, scopes, or ownership.
   reason?}`. A failed row has `error: {code, message, conflicts?,
   nearestSlots?}`. A `conflict` names each clash (the stored `id`, or
   `batchIndex` for a clash inside the same call) and offers `nearestSlots`.
-- A whole-tool failure uses `isError:true`, explanatory text, and
-  `_meta["reassign/error"].code`. Clients may not expose that metadata to the
-  model; if absent, relay the visible message without inventing a code.
-- A rejected batch (no op applied) has a top-level code only when its failed
-  rows agree on one. Mixed failures have no single remedy: inspect each row.
+- A whole-tool failure uses `isError:true` and one text block. The text is
+  the JSON envelope `{"error": {"code", "message"}}`, also for the prose tools
+  (`show_day`, `get_weather`, `get_energy`). `_meta["reassign/error"].code`
+  repeats the code when the client exposes it.
+- Arguments that fail a tool's input schema never reach Reassign. The MCP SDK
+  refuses them as prose `Input validation error: ...`, with no code and no
+  `_meta`. Correct the arguments.
+- A rejected batch (no op applied) is the second `isError:true` shape. Its
+  text is `{"error": {"code", "message"}, "timezone"?, "results"}`, so the rows
+  are still there. `error.code` is the code that the failed rows share, or
+  `batch_rejected` when they differ. `_meta` carries a code only when the rows
+  share one. Mixed failures have no single remedy: inspect each row.
 - HTTP/JSON-RPC transport failures happen outside these tool envelopes.
-- A tool schema can list `llm_model` (required) and `conversation_id`. These
-  are analytics fields; the server does not enforce them. Set `llm_model` to
-  your model id. Send back the `conversation_id` that a result returns.
+- A tool schema can list `llm_model` (required). It is an analytics field;
+  the server does not enforce it. Set it to your model id. There is no
+  `conversation_id`: a result has only its own content block.
 
 ## Batches and retries
 
@@ -64,8 +74,10 @@ are `error` rows. With `partial:true`, inspect the rows and retain successes.
 An op that is not valid is an `error` row with `validation`, not a failure of
 the whole call. A batch whose writes landed is never rejected, also when the
 read-back of a row fails (an `internal` row).
-`schedule` and `confirm_schedule` report independent indexed rows; an `ok`
-proposal is not yet a booking. Do not assume every row failed from one error.
+`schedule` and `confirm_schedule` are atomic by default too: one failed row
+writes nothing, and the other rows are `skipped`. Set `partial:true` for
+best effort. A replayed `schedule` row stays `ok` with `replayed: true`, because
+an earlier call booked it. An `ok` proposal is not yet a booking.
 
 For an uncertain write outcome, read the affected schedule or Inbox before
 retrying. Do not blindly repeat creates. For `schedule`, preserve the exact
@@ -83,8 +95,20 @@ and `expiresAt` (30 minutes) when they change data. A call that changed
 nothing, or a rejected batch, has no token. The server records the undo after
 the change lands. When that record fails, the change stays and the result has
 no `undoToken`: tell the user that this change has no undo. `undo` takes
-`tokens` (1 to 20) and returns only per-token `results`; an undo cannot itself
-be undone. A token reverts one time: a second `undo` of it is a `validation`
-row ("Nothing to undo for this token"). When a calendar sync sends the same
-change at that moment, the undo row fails with `conflict` and changes nothing:
-retry it after a moment.
+`tokens` (1 to 20) and returns only per-token `results`, in the order of
+`tokens`; an undo cannot itself be undone. It undoes the newest write first, so
+the token order does not matter. A token reverts one time: a second `undo` of
+it is a `validation` row ("Nothing to undo for this token"). When a calendar
+sync sends the same change at that moment, the undo row fails with `conflict`
+and changes nothing: retry it after a moment.
+
+A token is `stale` when a row that its write touched changed again later (a
+move, a park, a delete, a sync edit), or when it would delete a category that a
+later write uses. The undo then changes nothing. Tell the user, and offer to
+edit the current state instead. A sync that only stores the same values again
+does not make a token stale.
+
+Each undo row result is `{reverted, restored, removed, voided,
+occurrenceRestored?}`. The four counts are always there (0 when none);
+`reverted` = `restored` + `removed` + `voided`. `occurrenceRestored` is there
+only when it is above 0.

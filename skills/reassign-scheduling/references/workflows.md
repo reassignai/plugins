@@ -128,7 +128,7 @@ and activity types, `userPreferences`, and the day's load. Use `write_events` fo
 1. `find_event` by name (scope with `from`/`to`, `areaId`, `activityTypeId`,
    `timeOfDay`). If it returns `ambiguous: true`, present the candidates and let
    the user pick rather than guessing. Two days of the same series are not
-   ambiguous.
+   ambiguous: it returns one event per series, the best-matched occurrence.
 2. Apply the change with `write_events` using the resolved id.
 
 ## Working a connected calendar (sync)
@@ -176,7 +176,8 @@ SKILL.md §Backlog.
    Neither field belongs on a task they simply told you about. A raw dump
    (pasted notes, a dictation transcript) → one `capture_text` op, and let
    Reassign split it (SKILL.md §Backlog). Do not send it for tasks that you
-   already named with the user.
+   already named with the user. When the user names a task list ("put it in
+   Todoist Work"), send its `calendarId` (SKILL.md §Inbox Source).
 2. **Plan the day from the tray.** Read `get_schedule` with
    `includeBacklog:true`; follow `nextBacklogOffset` with the same filters for
    a complete sweep. Items carry their planned day/window; an item whose window
@@ -195,11 +196,14 @@ SKILL.md §Backlog.
    reason — edit it on the dial instead. `schedule` and `park` are inverses, so
    an accidental placement or park is undone by its opposite. **Park before you
    mark:** an event carrying a reflect status is refused ("Reviewed events can't
-   be added."), so parking has to happen before the `reflect` op, not after. For
-   a block that was *partly* done, `capture` its unticked steps as a new parked
-   block's `checklist` instead of parking the whole thing — and wherever `park` is
-   refused (a reflected block, a recurring one, sleep, a non-owned calendar
-   event), that capture is the only way to carry the remainder forward.
+   be added."), so parking has to happen before the `reflect` op, not after.
+   The parked item gets a new `id` and keeps the event's day as `plannedDate`.
+   For a block that was *partly* done, `park` keeps the ticked steps (the item
+   read does not show them), and a later one-off `schedule` gives them back.
+   Wherever `park` is refused (a reflected block, a recurring one, sleep, a
+   non-owned calendar event), `capture` the unticked steps as a new parked
+   block's `checklist`. That capture is the only way to carry the remainder
+   forward.
 4. **Re-plan overdue blocks.** An overdue block outlived its planned
    window — offer to place it, re-plan it, or return it to Someday per
    SKILL.md §Backlog (a task-app-linked block's dates are provider-owned;
