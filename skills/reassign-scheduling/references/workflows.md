@@ -3,7 +3,7 @@
 Multi-step scenarios that go beyond the single-block flows in SKILL.md. Every
 one starts with `get_schedule` to anchor `now`, the user's areas
 and activity types, `userPreferences`, and the day's load. Use `write_events` for event edits, `delete_events` for removals, and
-`manage_backlog` for parked intentions (≤50 ops per call, atomic unless
+`manage_inbox` for parked intentions (≤50 ops per call, atomic unless
 `partial:true`). Surface returned undo tokens and respect existing authorization.
 
 ## A manageable day plan
@@ -123,13 +123,20 @@ and activity types, `userPreferences`, and the day's load. Use `write_events` fo
    equal for one day; `delete` by id). Reversible → `undoToken`.
 5. `show_day`; surface the `undoToken`.
 
-## Find-and-fix an event without an id
+## Find and edit an event or Inbox item without an id
 
-1. `find_event` by name (scope with `from`/`to`, `areaId`, `activityTypeId`,
-   `timeOfDay`). If it returns `ambiguous: true`, present the candidates and let
-   the user pick rather than guessing. Two days of the same series are not
-   ambiguous: it returns one event per series, the best-matched occurrence.
-2. Apply the change with `write_events` using the resolved id.
+1. `find_event {query}` returns scheduled `events` and untimed `inbox` items.
+   `areaId`/`activityTypeId` filter both; `from`/`to` and `timeOfDay` filter
+   only events. Follow `nextInboxOffset` with `inboxOffset` and the same query
+   and filters when more Inbox matches are needed (context.md §Find events
+   and Inbox items).
+2. `ambiguous:true` describes event ties only. Resolve multiple plausible
+   Inbox matches or an event/Inbox collision too; ask when the user's intent
+   does not identify one. Each recurring series returns its best-matched
+   occurrence, with the nearest to today winning a tie.
+3. Use the resolved id with `write_events` for an event, or `manage_inbox`
+   for an Inbox item. To place an Inbox item, use its `schedule` op so the
+   intention leaves the tray.
 
 ## Working a connected calendar (sync)
 
@@ -139,7 +146,7 @@ See references/calendars.md for the full surface. The flow:
    connected. Read `sources[].status`, `defaultCalendarId`, and each event's
    `source`/`calendarId`/`readOnly` before touching anything.
 2. Editing/creating an owned linked event (or one under the default sync
-   calendar) via `write_events`/`schedule`, or deleting via `delete_events`,
+   calendar) via `write_events`/`schedule_events`, or deleting via `delete_events`,
    **propagates to the provider automatically** — no separate sync step. Surface
    the `undoToken` as usual.
 3. **Never** edit, move, or delete a `readOnly` event (a calendar the user
@@ -156,13 +163,14 @@ See references/calendars.md for the full surface. The flow:
 ## Working the backlog (parked blocks)
 
 The tray holds *un-timed*
-intentions; the write surface is `manage_backlog`, the read path is
-`get_schedule` (`backlogCount` → `includeBacklog:true`/`backlogQuery`/
-`backlogPlannedOn`). A parked block may carry a planned day or window — see
-SKILL.md §Backlog.
+intentions; the write surface is `manage_inbox`, the read path is
+`get_schedule` (`backlogCount` → `includeBacklog:true`, optionally filtered by
+`backlogPlannedOn`). Search by name with `find_event {query}` and read its
+`inbox` results (context.md §Find events and Inbox items). A parked block may
+carry a planned day or window — see SKILL.md §Backlog.
 
 1. **Capture without cramming.** The user rattles off tasks with no clear time,
-   or the day's already full → `manage_backlog` `capture` ops (one batch, up to
+   or the day's already full → `manage_inbox` `capture` ops (one batch, up to
    50) instead of forcing blocks onto the dial. Attach `durationMinutes`,
    `kind`, and `areaId`/`activityTypeId` where known so a later placement sizes and classifies itself. A
    day named without a time ("sometime Friday") → capture with a planned
@@ -239,7 +247,7 @@ SKILL.md §Microtasks for the op contract; microtasks work on any event kind.
    intention — offer to `capture` them into the backlog (§Working the backlog,
    step 3) rather than letting them disappear.
 
-For a **parked** block, the same idea uses `manage_backlog`'s
+For a **parked** block, the same idea uses `manage_inbox`'s
 `checklist: {items:[{id?, text}]}` (replaces the list) — there's no occurrence to tick against until it's
 scheduled, and the steps carry over when it is.
 
