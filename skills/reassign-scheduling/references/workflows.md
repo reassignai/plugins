@@ -132,7 +132,7 @@ their fields. Re-read the range after the split before making another edit.
    so the day re-flows atomically. Target each event id once per call.
 3. Re-insert buffers that the reshuffle collapsed.
 4. Clear anything obsolete with `delete_events` (`clear` a `from`..`to` range,
-   equal for one day; `delete` by id). Reversible → `undoToken`.
+   equal for one day; `delete` by id). A returned `undoToken` reverses the call.
 5. `show_day`; surface the `undoToken`.
 
 ## Find and edit an event or Inbox item without an id
@@ -229,7 +229,7 @@ carry a planned day or window — see SKILL.md §Backlog.
    SKILL.md §Backlog (a recurring task's date is provider-owned;
    see references/calendars.md).
 5. **Prune.** Drop a dead intention with `remove`; edit one in place with
-   `update`. Each call returns one `undoToken`.
+   `update`. Surface an `undoToken` when returned (references/limits.md).
 
 ## Breaking a block into microtasks
 

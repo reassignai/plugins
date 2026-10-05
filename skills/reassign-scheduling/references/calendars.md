@@ -37,7 +37,7 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   - Every task app: a `manage_inbox` `update` of `plannedDate` or
     `plannedUntil` writes back to the task app.
   - A recurring task: the date is provider-owned. An update of it is refused
-    with `permission` (not an access problem; do not offer an upgrade). The
+    with `read_only` (not an access problem; do not offer an upgrade). The
     user changes the date in the task app.
 - **Place and remove keep the task.** Scheduling or moving a linked slot never
   changes the provider due date. Removing a linked slot returns the task to
@@ -87,6 +87,14 @@ check each source's `status` before describing sync as active. Shape:
   guidance (account-wide context + every per-calendar instruction) already
   compiled into one contradiction-free ruleset that the classifier reads. Absent
   when nothing has been compiled yet.
+- `aiRuleWarnings` (optional) — up to 20 `{code, field, name}` entries for
+  explicit taxonomy references in `aiRules` that cannot resolve against the
+  user's visible categories. `code` is `missing_taxonomy_reference` or
+  `ambiguous_taxonomy_reference`; `field` is `area` or `activityType`. Use the
+  warning to explain a missing or unclear category and help the user resolve
+  it. The warnings do not rewrite rules or categories. They check explicit
+  quoted/labeled references and `set Area to …` clauses; no warnings does not
+  certify arbitrary prose rules. Omitted with `includeLookups:false`.
 - `defaultCalendarId` (optional) — the calendar new dial events publish to
   by default. Absent if the user hasn't set one (or it's no longer writable).
   It is also the default Source of a new Inbox item: a task list default
@@ -145,8 +153,8 @@ On each event in `get_schedule` / `find_event`:
   the occurrence has its own calendar.
 - `readOnly: true` — the event is from a calendar the user **doesn't own**.
   **Never edit, move, or delete it** via `write_events`/`delete_events`: the
-  provider owns the truth, so the change silently reverts. Surface it as context
-  only.
+  tools refuse the change. Surface it as context and direct the user to the
+  owning calendar.
 - `meeting {url, label}` and `location {text, url?}` — present when the
   provider gives them.
 - `warning` — a start time that a DST change skips.

@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.17.0"
+  version: "1.18.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -66,10 +66,10 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   `<next day>T00:00`. The event's day is the date part of `start`.
 - Copy ids and values from a read into a write as they are. The API rejects
   unknown keys, old field names, and other formats; it does not coerce them.
-- Surface returned undo tokens — each write that changes data returns one
-  `undoToken` + `expiresAt` (a UTC instant, 30 minutes) for `undo_changes`. Do not
-  invent a token. A token is `stale` when a row that the write touched
-  changed again later; then the undo changes nothing (references/limits.md).
+- Surface `undoToken` + `expiresAt` (UTC, 30 minutes) when a write records an
+  undo receipt. A change can land without a receipt; never invent a token or
+  infer no change from its absence. A token is `stale` when a touched row
+  changed again later; the undo changes nothing (references/limits.md).
 - Render with `show_day` when the user wants to *see* the plan —
   it draws the interactive 24-hour dial inline.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
@@ -89,8 +89,8 @@ with access: recurrence, backlog, focus intervals, and microtasks are included.
   subscription.” Relay it; a one-off, shorter date range, or different tool
   cannot bypass it. Reconnecting does not restore subscription access.
 - Tool refusals carry a per-row `error.code` or a whole-tool
-  `{"error": {"code", "message"}}` JSON text (`isError:true`), also on
-  `show_day`. Distinguish account `permission`, connection `scope`, and
+  `{"error": {"code", "message", ...}}` JSON text (`isError:true`), also on
+  `show_day`. Distinguish plan/action `permission`, connection `scope`, and
   resource `read_only`; they need different remedies. `rate_limited` means wait, not upgrade.
 - See references/limits.md for response shapes, mixed batches, and retries.
 
@@ -223,14 +223,14 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   `todoist`. A linked event carries its home `calendarId` (absent = the
   default calendar, `null` = dial only) and any `mirrorCalendarIds`. An event
   with `readOnly: true` is from a calendar the user doesn't own — **never edit
-  or delete it**; the change would silently revert.
+  or delete it**; the tools refuse the change.
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
   like editing on the dial. You don't call a separate sync tool.
 - `integrations` carries connected `sources` (`provider`, `status`,
   `calendars`), the account-wide AI classifier (`aiClassify`, plus the compiled
-  `aiRules`) and the `defaultCalendarId` that new events sync to. Each calendar
+  `aiRules`, optional `aiRuleWarnings`) and the `defaultCalendarId`. Each calendar
   carries `id`, `name`, `writable`, an optional `timezone`, and its import
   policy: `area`, `activityType`, and `kind`, each `{mode:"automatic"}` or
   `{mode:"fixed", ...}`. See references/calendars.md for import explanations,
@@ -255,20 +255,20 @@ references/reflection.md for the full detail):
   next day), or `added` (unplanned but happened — its
   `actualStart`/`actualEnd` become its time). A mark on a planned event only sets its reflect status +
   actual time; you cannot rename/re-area it through a reflect op (that would game
-  adherence). Marks ride the same atomic, undoable batch as other ops.
+  adherence). Marks use the same atomic batch and undo handling as other ops.
 - **Freeze / reset.** After marking, call `review_day` with
   `{date, action:"confirm"}` to freeze the day's adherence snapshot ("this is
   how it went") — that's what the `review` block and stats then read. Re-confirm
   to refresh. `{action:"discard"}` fully resets the day: it clears every mark and
-  removes events added only as part of the reflection. Both return an
-  `undoToken`.
+  removes events added only as part of the reflection. Surface an `undoToken`
+  when returned (references/limits.md).
 - `reflect` and `review_day` `confirm` require a **past** date. Today or a future day is
   `validation` (no subscription lifts it, so do not offer an upgrade).
   An event that ended earlier today still cannot be marked through MCP.
   A `confirm` on a day with no marks still confirms, but adds a `warning`: the
   score counts each unmarked event as kept. Relay the warning.
   `discard` works on any day, also on today's check-offs. A `discard` of a
-  day with no review and no marks succeeds with `updated: []`,
+  day with no review and no marks succeeds with `noop:true`, `updated: []`,
   `deletedIds: []`, and no `undoToken`. There is no
   plan-based editable-past window for callers with access.
 - `adherence.event` and `adherence.layer` are `null` for a day with no planned
@@ -344,7 +344,7 @@ active-trial/subscription access as the rest of MCP.
     window to its single day; a set `plannedUntil` must fall after the planned
     day. On a **task-app-linked** block, `manage_inbox` writes the planned
     date or window back; a recurring task's date is provider-owned and refused
-    with `permission` (the user changes it in that app — references/calendars.md).
+    with `read_only` (the user changes it in that app — references/calendars.md).
     `sourceUrl: null` clears a stale link off a block the user is keeping.
   - `remove` — delete one by `id`.
   - `schedule` — **place** a parked block (`id`) on the dial at `start` (a
@@ -356,7 +356,7 @@ active-trial/subscription access as the rest of MCP.
   - `park` — **move** a dial event (`id`) back into the tray; the item keeps the
     event's `kind`. Works only on a native or owned-calendar one-off that hasn't
     been reviewed; a recurring, sleep, reviewed, or not-owned event is refused
-    with a reason (edit it on the dial instead). Parking a calendar-linked event
+    with `permission` (relay the reason). Parking a calendar-linked event
     removes its calendar copy but remembers the calendar, so re-scheduling
     republishes there. The item gets a new `id` (`deletedIds` holds the event
     id) and keeps the event's day as `plannedDate`.
@@ -369,8 +369,8 @@ active-trial/subscription access as the rest of MCP.
   parked intention down now isn't wasted work. A `park` also keeps the ticked
   steps, but the item read does not show them. A later `schedule` as a one-off
   event gives them back.
-- Every call that writes returns one `undoToken`; `undo_changes` reverses the whole
-  call. `schedule` and `park` are also **inverses** for use after the window.
+- A recorded `undoToken` reverses the whole call with `undo_changes`.
+  `schedule` and `park` are also **inverses** for use after the window.
 
 ### Inbox Source
 
@@ -386,8 +386,8 @@ new item.
 - On `capture_text` with no `calendarId`, the AI sends an item to a list only
   when the text names that list ("add to Todoist Work: call the bank"). It
   never picks a list from the topic.
-- A list id on a plan with no sync access, or a list that cannot take a new
-  item, is a `validation` row.
+- A list id without sync access is `permission` with `feature:"calendar_sync"`;
+  a list that cannot take a new item is `validation`.
 - The task is created after the call returns. A failed create leaves the item
   in Reassign only. The undo deletes the task in its app (Linear closes it).
 - The item read in `get_schedule` does not show the Source of an item.
@@ -459,7 +459,8 @@ Treat the tray as a first-class part of the plan, not a side list:
 4. For a new block, call `write_events` with
    `ops:[{op:"create", name, start, end}]`. Both times are local datetimes
    (`"YYYY-MM-DDTHH:MM"`) in the returned `timezone`; compute `end` from the
-   chosen duration. Attach `areaId`/`activityTypeId`, `kind`, or `notes` as
+   duration. Omit `id` for a generated UUID, or supply a UUID. Attach
+   `areaId`/`activityTypeId`, `kind`, or `notes` as
    needed. Add an RRULE `recurrence` for a repeat; recurring creates check
    conflicts across a bounded horizon. Calendar targets follow
    references/calendars.md §Calendar targets. Set `render:true` to repaint an
@@ -474,8 +475,9 @@ Treat the tray as a first-class part of the plan, not a side list:
    a fitting span before retrying. The batch is atomic by default: one failed
    op writes nothing and the other ops are `skipped`. Fix the failed op and
    resend, or use `partial:true` when keeping successful ops is intended.
-   An `ok` row with `warnings:["classification_pending"]` may have its area,
-   activity type, or kind changed by AI later; re-read when those values matter.
+   `warnings:["classification_pending"]` means eligible fields may be filled
+   later. Native creates protect their kind, including default `blocking`;
+   see references/taxonomy.md for manual choices and clears. Re-read as needed.
 6. Surface the returned `undoToken`. If a write's outcome is uncertain,
    read the affected schedule before retrying so a create is not duplicated
    (references/limits.md).

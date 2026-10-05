@@ -46,6 +46,24 @@ doesn't exist yet. Sequence:
    is no reference by name; look up an existing id in the `areas` and
    `activityTypes` lists of `get_schedule`.
 
+## Manual choices and AI classification
+
+Native event creates preserve the caller's `kind`, including default
+`blocking`, and explicit non-null `areaId` / `activityTypeId` choices. Missing
+categories may still be filled asynchronously. On create, `null` for either
+category is equivalent to omission and remains eligible for AI filling.
+
+On a native event update, explicit choices stay manual, even when reselecting
+the current AI value. `areaId:null` / `activityTypeId:null` preserves deliberate
+emptiness, even when already empty. Omitted fields retain their existing
+ownership; a successful undo restores prior ownership. Inbox category updates
+also preserve explicit clears.
+
+`classification_pending` means the write queued classification for eligible
+fields, not permission to overwrite these manual choices. Re-read when the
+resulting categories matter; do not fill a deliberately cleared category just
+to make the plan look complete.
+
 ## Editing globals forks them
 
 Some areas/types are shared global defaults. Editing one **forks it into the
@@ -59,8 +77,8 @@ applies to `write_events`, `manage_inbox`, and `reassignTo`.
 
 You can delete only the user's own (non-global) entries. If events still use the
 entry, the delete fails unless you set `reassignTo` — another entry's id — to
-move those events first. Each call that writes returns one `undoToken`
-(30-min window) that reverses the whole call. So the
+move those events first. When an undo receipt is recorded, its `undoToken`
+(30-min window) reverses the whole call (references/limits.md). So the
 safe delete is: pick a destination area/type, `delete` with `reassignTo` set,
 confirm the moved count, surface the `undoToken`.
 

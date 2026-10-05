@@ -8,11 +8,15 @@ Use `find_event {query}` when you know a name but need an id. It returns
 
 - **Events** match fuzzily and return best match first. The default window is
   the past week through the next 30 days; `from`/`to` change that window.
+  The inclusive date range matches any actual event overlap, including an
+  overnight event that started earlier. An event ending exactly at the first
+  day's midnight does not overlap. `timeOfDay` filters the event's actual
+  start time, not the part spilling into a later day.
   Each hit adds a name-match `score` from 0 to 1 (1 exact, 0.9 prefix, 0.75
   substring). Scores below 0.34 are excluded. This measures name similarity;
   it does not establish that an event is the user's intended target.
   `score` is output-only; leave it out when building a write from a search hit.
-  `timeOfDay` filters event starts. A recurring series returns one occurrence:
+  A recurring series returns one occurrence:
   the best match (including a renamed occurrence), then nearest to today on a
   tie. Copy its returned id when editing that occurrence.
 - **Inbox items** match when their name contains the query. They come in tray
