@@ -49,7 +49,7 @@ adherence yourself.
 
 Record how a past event went with an op on the normal batch write — it rides the
 same atomic plan→apply→undo path as `create`/`update`/`shift`, so marks
-batch together and return an `undoToken`.
+batch together. Surface an `undoToken` when a receipt is returned (limits.md).
 
 The occurrence must be on a past day in the user's timezone. A `reflect` op for
 today or a future day fails with `validation`, including an event that already
@@ -84,7 +84,8 @@ today's reflection through MCP.
 - **Task-linked events mirror completion.** When the reflected event is linked
   to a task in a task app (Todoist, Google Tasks, Microsoft To Do, Linear,
   TickTick), the mark drives the task's lifecycle in the *same* atomic batch
-  (one `undoToken`): **`kept` completes** the task, **`skipped` reopens** it.
+  (covered by the same undo receipt): **`kept` completes** the task,
+  **`skipped` reopens** it.
   TickTick cannot reopen a task, so a `skipped` mark leaves it as it is.
   `changed` and `added` never touch the task. Task links are always one-offs,
   so this only applies to single events. Nothing extra to call — reflect as
@@ -119,8 +120,8 @@ review_day { date, action: "confirm" | "discard" }
   day's planned events, and removes events that were `added` only as part of the
   reflection. Use it to start a day's reflection over, or to drop one confirmed
   by mistake.
-- Both go through the scoped write path and are **reversible** via the returned
-  `undoToken` (the standard 30-minute window via `undo_changes`). Because
+- Both go through the scoped write path; when a receipt is recorded, its
+  `undoToken` allows `undo_changes` for 30 minutes (limits.md). Because
   `discard` is destructive, confirm intent before discarding a day the user has
   already reviewed.
 
@@ -129,8 +130,8 @@ review_day { date, action: "confirm" | "discard" }
 `review_day` `confirm` rejects today and future dates with `validation`.
 Choose a past date; an upgrade does not change that rule. `discard` works on
 any day, also on today's check-offs. A `discard` of a day with no review and
-no marks succeeds with `updated: []`, `deletedIds: []`, and no `undoToken`,
-because it changed nothing. Callers with active
+no marks succeeds with `noop:true`, `updated: []`, `deletedIds: []`, and no
+`undoToken`, because it changed nothing. Callers with active
 trial/subscription access have no plan-based historical edit limit. Access
 failures happen at the MCP gate (see references/limits.md).
 
