@@ -29,10 +29,10 @@ A `discard` of a day with nothing recorded returns `noop:true`, empty
 | `permission` | a plan gate or an action restriction, such as parking a recurring, sleep, reviewed, or not-owned event | relay the message; offer an upgrade only for a plan gate |
 | `scope` | the connection lacks this OAuth scope | reconnect with the needed permission |
 | `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window | use the owning calendar/task app |
-| `conflict` | the requested time is taken, or a short busy state blocks the write | choose another slot; retry a busy state once |
+| `conflict` | the requested time is taken, a category name or an id is already in use, or a short busy state blocks the write | time: choose another slot. Name: reuse the id from the message, or pick another name. Busy state: retry once |
 | `not_found` | the referenced event, item, area, activity type, day, or token does not exist | re-read and resolve the target |
 | `stale` | an `undo_changes` token whose rows changed again after the write | the undo changed nothing; tell the user and do not retry the token |
-| `validation` | arguments are invalid, contradictory, or use an old field name or format | correct them |
+| `validation` | arguments are invalid, contradictory, or use an old field name or format; or a category delete with live links omits `reassignTo` | correct them. For a category delete, use the user's reassignment choice or ask if it is missing (taxonomy.md §Deleting safely) |
 | `rate_limited` | an abuse/request budget was exceeded | keep the draft and wait as directed |
 | `internal` | a backend operation failed | inspect the result before a bounded retry |
 
@@ -50,8 +50,9 @@ the same denied call cannot fix account access, scopes, or ownership.
 
 - A batch row is `{index, status: "ok" | "error" | "skipped", result?, error?,
   reason?, warnings?}`. A failed row has `error: {code, message, conflicts?,
-  nearestSlots?, issues?, feature?, conflictingRows?, conflictingRowsTruncated?}`.
-  A `conflict` names each clash (the stored `id`, or
+  nearestSlots?, issues?, feature?, conflictingRows?, conflictingRowsTruncated?,
+  usage?, reassignTargets?}`.
+  A time `conflict` names each clash (the stored `id`, or
   `batchIndex` for a clash inside the same call) and offers `nearestSlots`.
 - A successful event-write row can carry `warnings:["classification_pending"]`
   when it queued AI classification and the account permits it. The write landed,
@@ -98,6 +99,8 @@ the same denied call cannot fix account access, scopes, or ownership.
   `validation`. A `permission` code alone does not establish a plan problem.
 - Stale undo stamp mismatches can include `conflictingRows` and
   `conflictingRowsTruncated`; see §Undo.
+- A refused `manage_categories` delete of an entry that items use can include
+  `usage` and `reassignTargets`; see taxonomy.md §Deleting safely.
 
 ## Batches and retries
 
@@ -158,7 +161,9 @@ and changes nothing: retry it after a moment.
 
 A token is `stale` when a row that its write touched changed again later (a
 move, a park, a delete, a sync edit), or when it would delete a category that a
-later write uses. The undo then changes nothing and leaves the token active.
+later write uses. An undo that brings back a hidden shared default is also
+stale when a visible category now has its name. The undo then changes nothing
+and leaves the token active.
 Tell the user, and offer to edit the current state instead. A sync that only
 stores the same values again does not make a token stale.
 

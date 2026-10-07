@@ -25,17 +25,21 @@ of my life," pattern answers "what mode of work."
 array of ops:
 
 - Area: `{op:"create", name, color?}` / `{op:"update", id, name?, color?,
-  order?}` / `{op:"delete", id, reassignTo?}`. Omit `color` to let Reassign
-  auto-pick.
+  order?}` / `{op:"delete", id, reassignTo?: id | null}`. Omit `color` to let
+  Reassign auto-pick.
 - Activity type: same shape but `pattern` instead of `color`.
 
 The batch is **atomic by default** — if any op is invalid, nothing is written;
 set `partial:true` for best-effort. The response has two row arrays, `areas`
 and `activityTypes`, each indexed on its own input array. A create or update
-row is the `created`/`updated` object `{id, name, color | pattern}`; a delete
-row lists `deletedIds` (plus `movedEvents` after a reassign). A name that
-matches an existing area/type (case- and whitespace-insensitive) is rejected:
-reuse the existing id.
+row is the `created`/`updated` object `{id, name, color | pattern}`. A delete
+row lists `deletedIds`. The first id is the id that you sent. When a shared
+default has a user copy, deleting either one lists both ids (§Deleting safely).
+When `reassignTo` is an id, the row also has `movedEvents`, the number of moved
+events. A `create` or a rename into a name that an entry of the same kind
+already has fails with `conflict`. The match ignores case, accents, and extra
+spaces. The message gives the id of the existing entry: reuse it, or pick a
+different name.
 
 **Create first, then reference.** You cannot attach an event to an area that
 doesn't exist yet. Sequence:
@@ -69,18 +73,32 @@ to make the plan look complete.
 Some areas/types are shared global defaults. Editing one **forks it into the
 user's own copy**, so the returned id may differ from the one you passed — each
 result reports the effective id (and `forkedFrom`). Always read the id back from
-the response rather than assuming it's unchanged. A write that still sends the
-global id in `areaId` or `activityTypeId` links to the fork of the user. This
-applies to `write_events`, `manage_inbox`, and `reassignTo`.
+the response rather than assuming it's unchanged. The fork also takes the
+links of the user's events, Inbox items, and trackers. A write that still sends
+the global id in `areaId` or `activityTypeId` links to the fork of the user.
+This applies to `write_events`, `manage_inbox`, and `reassignTo`.
 
 ## Deleting safely
 
-You can delete only the user's own (non-global) entries. If events still use the
-entry, the delete fails unless you set `reassignTo` — another entry's id — to
-move those events first. When an undo receipt is recorded, its `undoToken`
-(30-min window) reverses the whole call (references/limits.md). So the
-safe delete is: pick a destination area/type, `delete` with `reassignTo` set,
-confirm the moved count, surface the `undoToken`.
+You can delete the user's own entries and the shared defaults. A delete of a
+shared default, or of the user's copy of it, hides the default for this user
+only. A hidden entry is not in the `areas` and `activityTypes` of
+`get_schedule`. An event write that names it fails with `not_found`.
+
+If a live event, an Inbox item, an active tracker, or a calendar default uses
+the entry, a delete without `reassignTo` fails with `validation`. The error
+has `usage` (`{events, inboxItems, trackers, calendars}`) and `reassignTargets`
+(`[{id, name}]`). For a shared default or its copy, the counts cover both ids;
+deleted events and archived trackers are excluded. Show the counts and ask
+where the items go if the user has not already specified that choice.
+`reassignTo: "<id>"` moves the links, and `reassignTo: null` clears them.
+Include the user's choice in the first delete when it is already known.
+An entry with no live links needs no `reassignTo`.
+
+When an undo receipt is recorded, its `undoToken` (30-minute window) reverses
+the whole call (references/limits.md). The undo brings back the entry or the
+hidden default. It also restores each link that the delete moved or cleared.
+Surface the `undoToken`.
 
 ## Practical mapping
 
