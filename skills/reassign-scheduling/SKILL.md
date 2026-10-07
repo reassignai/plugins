@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.18.0"
+  version: "1.19.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -221,9 +221,10 @@ Todoist), whose lists or projects surface as calendars. The essentials:
 - An event's `source` is `"reassign"` (native) or the provider: `google`,
   `microsoft`, `google_tasks`, `microsoft_todo`, `linear`, `ticktick`, or
   `todoist`. A linked event carries its home `calendarId` (absent = the
-  default calendar, `null` = dial only) and any `mirrorCalendarIds`. An event
-  with `readOnly: true` is from a calendar the user doesn't own — **never edit
-  or delete it**; the tools refuse the change.
+  default calendar, `null` = dial only), any `mirrorCalendarIds`, and any
+  `mirrorStyles` (the copy style per copy calendar). An event with
+  `readOnly: true` is from a calendar the user doesn't own — **never edit or
+  delete it**; the tools refuse the change.
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
@@ -231,10 +232,11 @@ Todoist), whose lists or projects surface as calendars. The essentials:
 - `integrations` carries connected `sources` (`provider`, `status`,
   `calendars`), the account-wide AI classifier (`aiClassify`, plus the compiled
   `aiRules`, optional `aiRuleWarnings`) and the `defaultCalendarId`. Each calendar
-  carries `id`, `name`, `writable`, an optional `timezone`, and its import
-  policy: `area`, `activityType`, and `kind`, each `{mode:"automatic"}` or
+  carries `id`, `name`, `writable`, an optional `timezone`, a `copyStyle`
+  (only on a writable calendar of a calendar source), and its import policy:
+  `area`, `activityType`, and `kind`, each `{mode:"automatic"}` or
   `{mode:"fixed", ...}`. See references/calendars.md for import explanations,
-  the full surface, and calendar targets.
+  the full surface, calendar targets, and copy styles.
 
 ## Reflection (how a past day went)
 
@@ -535,15 +537,17 @@ Treat the tray as a first-class part of the plan, not a side list:
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
   it is refused. Series-level fields (`calendarId`, `mirrorCalendarIds`,
-  `sourceUrl`) are refused on one occurrence unless they equal the current
-  value. `recurrence:null` turns a series back into a one-off. When a new rule
-  skips the anchor day, the result carries `firstOccurrence`.
+  `mirrorStyles`, `sourceUrl`) are refused on one occurrence unless they equal
+  the current value. `recurrence:null` turns a series back into a one-off.
+  When a new rule skips the anchor day, the result carries `firstOccurrence`.
 - Target each event id at most once per call, and each series with at most
   one `scope:"future"` op and not also its bare id. `render:true` repaints.
 - `delete_events`: `delete` by `id` (same id rules), or `clear` with
   `from`+`to`; `clear` keeps `readOnly` events (`skippedReadOnly`).
 - Create areas/types with `manage_categories` before you
   reference them; un-timed blocks go through `manage_inbox` (§Backlog).
+  A delete of a category that items use fails with their counts. Ask the user
+  where the items go (references/taxonomy.md §Deleting safely).
 - `find_event {query}` searches both `events` and untimed `inbox` items.
   `ambiguous` describes event ties only; resolve multiple plausible Inbox
   matches too. Write an Inbox result with `manage_inbox`. See
@@ -551,8 +555,8 @@ Treat the tray as a first-class part of the plan, not a side list:
 - For recurring masters (rule, anchor span, next occurrence, override counts)
   set `includeSeries:true` → get_schedule returns a `series` array. A row also
   has `kind`, `source`, `areaId`, `activityTypeId`, and the calendar fields
-  (`calendarId`, `mirrorCalendarIds`, `readOnly`). It has no `notes`; read
-  them from the events. A moved occurrence's `nextOccurrence` uses its actual day.
+  (`calendarId`, `mirrorCalendarIds`, `mirrorStyles`, `readOnly`). It has no
+  `notes`; read them from the events. A moved occurrence's `nextOccurrence` uses its actual day.
 - Reflection (§Reflection) and microtasks (§Microtasks) use the `reflect` and
   `checklist` ops of the same tool.
 

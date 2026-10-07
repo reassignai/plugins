@@ -107,7 +107,10 @@ check each source's `status` before describing sync as active. Shape:
 - Each calendar: `id`, `name`, `writable` (only a writable calendar is a valid
   `calendarId`), an optional `timezone` (the provider zone of the calendar,
   information only: every span uses the top-level `timezone`), and the import
-  policy (below).
+  policy (below). A writable calendar of a calendar source (not a task list)
+  also has `copyStyle`: the default style of copies on it (§Copy styles). With
+  `copyStyle: "busy"`, `busyCopyTitle` gives the copy title. A `null` title
+  means "Busy".
 
 Use the visible facts to explain where new events sync (`defaultCalendarId`)
 or why a source is not importing (`status` ≠ connected). A source entry alone
@@ -137,8 +140,9 @@ events stay references for all policies. A policy change in the app can
 re-apply to existing events in a bounded, atomic run; do not simulate it by
 rewriting every event from chat, and do not assume that a change rewrote all
 historical occurrences. MCP cannot change a policy, the per-calendar AI rules,
-or the mirror setting: direct the user to the calendar settings in the app. Do
-not invent other policy fields; the exposed compiled guidance is `aiRules`.
+the mirror setting, the default copy style, or the busy title. Direct the user
+to the calendar settings in the app. Do not invent other policy fields; the
+exposed compiled guidance is `aiRules`.
 
 ## Per-event sync fields
 
@@ -147,10 +151,12 @@ On each event in `get_schedule` / `find_event`:
 - `source` — `"reassign"` for a native event, else the provider key.
 - `calendarId` — the home calendar. Absent means the default calendar; `null`
   means the event is on the dial only. `mirrorCalendarIds` lists the one-way
-  copy calendars, omitted when none. These ids do not by themselves prove that
-  remote delivery has finished. Look up a calendar's name in `integrations`.
-  Changed recurring occurrences inherit the series' calendar and mirrors unless
-  the occurrence has its own calendar.
+  copy calendars, omitted when none. `mirrorStyles` maps a copy calendar id to
+  its copy style (`full`, `private` or `busy`), omitted when none. These ids do
+  not by themselves prove that remote delivery has finished. Look up a
+  calendar's name in `integrations`. Changed recurring occurrences inherit the
+  series' calendar, mirrors, and copy styles unless the occurrence has its own
+  calendar.
 - `readOnly: true` — the event is from a calendar the user **doesn't own**.
   **Never edit, move, or delete it** via `write_events`/`delete_events`: the
   tools refuse the change. Surface it as context and direct the user to the
@@ -184,22 +190,53 @@ target only when the user names a calendar, and resolve its id from
 (the trial includes it) and is whole-series only.
 
 - `calendarId` on `create`: omit it for the default calendar; `null` keeps the
-  event on the dial only.
+  event on the dial only. A one-off with `calendarId: null` may still carry
+  `mirrorCalendarIds`.
 - `calendarId` on `update`: a calendar id moves the event to that calendar.
   Omit it to keep the current home.
 - `calendarId: null` on `update` unlinks the whole series (a bare id, no
   `scope`). It deletes the home link and every mirror copy, and keeps the dial
   block. The same op may also carry `start`, `end`, `name`, `notes`, `areaId`,
   `activityTypeId`, and `kind`; the server applies them first, in one
-  transaction. `mirrorCalendarIds`, `recurrence`, `recurrenceEnd`, `sourceUrl`,
-  and `focusIntervals` with `calendarId: null` are a `validation` error. On an
-  event that is already dial-only, `calendarId: null` changes nothing; send
-  `mirrorCalendarIds: []` to remove its copies.
+  transaction. `mirrorCalendarIds`, `mirrorStyles`, `recurrence`,
+  `recurrenceEnd`, `sourceUrl`, and `focusIntervals` with `calendarId: null`
+  are a `validation` error. On an event that is already dial-only,
+  `calendarId: null` changes nothing; send `mirrorCalendarIds: []` to remove
+  its copies.
 - `mirrorCalendarIds` **replaces** the copy set; `[]` clears it. It must not
   contain the home `calendarId`. The server checks only the ids that the op
   adds: each must be a connected, writable calendar that is not a task list.
   An id already on the event may stay, also when its calendar is read-only or
-  disconnected now. An op that adds no id needs no Pro plan.
+  disconnected now. An op that adds no copy id, no new or changed copy style,
+  and no new `calendarId` needs no Pro plan.
+- Copies of a series need a home calendar. These ops fail with `validation`:
+  - a `create` with `recurrence`, `calendarId: null`, and `mirrorCalendarIds`;
+  - an `update` that adds `recurrence` to a dial-only event with copies;
+  - an `update` that adds `mirrorCalendarIds` to a dial-only series.
+
+  On `create`, an omitted `calendarId` counts as no home when the user has no
+  default calendar. To fix the error, set a `calendarId` or remove the copies.
+
+## Copy styles
+
+A copy style sets how much a mirror copy shows. Set `mirrorStyles` only when
+the user asks to hide details on a copy calendar.
+
+| Style | Copy title | Copy notes | At the provider |
+|---|---|---|---|
+| `full` | the event title | the event notes | a normal event |
+| `private` | the event title | the event notes | a private event |
+| `busy` | the `busyCopyTitle` of the copy calendar, else "Busy" | none | a private, busy event with no reminders |
+
+- `mirrorStyles` on `create` or `update` maps a copy calendar id to a style.
+  On `update`, it **replaces** the map; `{}` clears it. It is whole-series only.
+- Each key must be in the `mirrorCalendarIds` that the op leaves on the
+  event, else the op fails with `validation`. On `update` without
+  `mirrorCalendarIds`, the current copy set counts.
+- A copy without an entry uses the `copyStyle` of its calendar in
+  `integrations`, else `full`.
+- A new or changed style needs Reassign Pro. A removed style needs no Pro plan.
+- A style changes only the copy. The home event keeps all its details.
 
 ## Mirroring / moving between calendars
 

@@ -168,9 +168,9 @@ See references/calendars.md for the full surface. The flow:
    `area`/`activityType`/`kind` policy and the account `aiClassify`/`aiRules`
    in `integrations` (calendars.md §Import policies). A `fixed` mode explains
    the value; an `automatic` mode means the AI chose it. To change a policy,
-   refer the user to the app calendar settings. Set `calendarId` or
-   `mirrorCalendarIds` only for an explicitly requested destination resolved
-   from `integrations` (calendars.md §Calendar targets).
+   refer the user to the app calendar settings. Set `calendarId`,
+   `mirrorCalendarIds`, or `mirrorStyles` only on an explicit request, with
+   calendar ids resolved from `integrations` (calendars.md §Calendar targets).
 
 ## Working the backlog (parked blocks)
 
