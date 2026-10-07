@@ -546,8 +546,8 @@ Treat the tray as a first-class part of the plan, not a side list:
   `from`+`to`; `clear` keeps `readOnly` events (`skippedReadOnly`).
 - Create areas/types with `manage_categories` before you
   reference them; un-timed blocks go through `manage_inbox` (§Backlog).
-  A delete of a category that items use fails with their counts. Ask the user
-  where the items go (references/taxonomy.md §Deleting safely).
+  A category delete with live links needs `reassignTo` (id or `null`). Ask for
+  the user's choice only if missing (references/taxonomy.md §Deleting safely).
 - `find_event {query}` searches both `events` and untimed `inbox` items.
   `ambiguous` describes event ties only; resolve multiple plausible Inbox
   matches too. Write an Inbox result with `manage_inbox`. See

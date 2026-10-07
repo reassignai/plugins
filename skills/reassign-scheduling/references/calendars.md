@@ -210,9 +210,10 @@ target only when the user names a calendar, and resolve its id from
   disconnected now. An op that adds no copy id, no new or changed copy style,
   and no new `calendarId` needs no Pro plan.
 - Copies of a series need a home calendar. These ops fail with `validation`:
-  - a `create` with `recurrence`, `calendarId: null`, and `mirrorCalendarIds`;
+  - a `create` with `recurrence`, `calendarId: null`, and a nonempty
+    `mirrorCalendarIds`;
   - an `update` that adds `recurrence` to a dial-only event with copies;
-  - an `update` that adds `mirrorCalendarIds` to a dial-only series.
+  - an `update` that adds copies to a dial-only series.
 
   An omitted `calendarId` on `create`, or an absent home on `update`, means the
   default calendar. It counts as no home when the user has no default calendar.
@@ -220,25 +221,36 @@ target only when the user names a calendar, and resolve its id from
 
 ## Copy styles
 
-A copy style sets how much a mirror copy shows. Set `mirrorStyles` only when
-the user asks to hide details on a copy calendar.
+A copy style sets how much a mirror copy shows. Set `mirrorStyles` when the
+user asks to change a copy's privacy or details, including restoring `full`
+details or returning to the calendar's default style.
 
 | Style | Copy title | Copy notes | At the provider |
 |---|---|---|---|
 | `full` | the event title | the event notes | a normal event |
 | `private` | the event title | the event notes | a private event |
-| `busy` | the `busyCopyTitle` of the copy calendar, else "Busy" | none | a private event with no reminders |
+| `busy` | the copy calendar's saved busy title, or "Busy" when unset | none | a private event with no reminders |
 
-A `private` or `busy` copy of a `blocking` event shows as busy. A copy of a
-`non_blocking` or `reference` event shows as free.
+For `private` and `busy` copies, a `blocking` event shows as busy; a
+`non_blocking` or `reference` event shows as free. This free/busy rule does
+not apply to `full` copies.
+
+`integrations` exposes `busyCopyTitle` only when the calendar's default
+`copyStyle` is `busy`. If an event overrides a `full` or `private` calendar
+to `busy`, its saved busy title still applies but is not exposed by MCP.
+Do not infer "Busy" from an omitted `busyCopyTitle`.
 
 - `mirrorStyles` on `create` or `update` maps a copy calendar id to a style.
-  On `update`, it **replaces** the map; `{}` clears it. It is whole-series only.
+  On `update`, it **replaces** the map; `{}` clears all event overrides. Read
+  the current map and preserve other entries when changing just one copy.
+  It is whole-series only.
 - Each key must be in the `mirrorCalendarIds` that the op leaves on the
   event, else the op fails with `validation`. On `update` without
   `mirrorCalendarIds`, the current copy set counts.
-- A copy without an entry uses the `copyStyle` of its calendar in
-  `integrations`, else `full`.
+- A copy without an entry inherits its calendar's saved copy style (default
+  `full`), exposed as `copyStyle` in `integrations` for writable calendars.
+  Removing an entry restores that default; to show full details on a calendar
+  whose default is `busy` or `private`, set that copy's entry to `full` explicitly.
 - A new or changed style needs Reassign Pro. A removed style needs no Pro plan.
 - A style changes only the copy. The home event keeps all its details.
 

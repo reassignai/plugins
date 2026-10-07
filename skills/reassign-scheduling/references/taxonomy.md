@@ -33,9 +33,8 @@ The batch is **atomic by default** — if any op is invalid, nothing is written;
 set `partial:true` for best-effort. The response has two row arrays, `areas`
 and `activityTypes`, each indexed on its own input array. A create or update
 row is the `created`/`updated` object `{id, name, color | pattern}`. A delete
-row lists `deletedIds`. The first id is the id that you sent. A second id
-appears when the entry is a shared default and the user has a copy of it
-(§Deleting safely).
+row lists `deletedIds`. The first id is the id that you sent. When a shared
+default has a user copy, deleting either one lists both ids (§Deleting safely).
 When `reassignTo` is an id, the row also has `movedEvents`, the number of moved
 events. A `create` or a rename into a name that an entry of the same kind
 already has fails with `conflict`. The match ignores case, accents, and extra
@@ -86,13 +85,15 @@ shared default, or of the user's copy of it, hides the default for this user
 only. A hidden entry is not in the `areas` and `activityTypes` of
 `get_schedule`. An event write that names it fails with `not_found`.
 
-If an event, an Inbox item, a tracker, or a calendar default uses the entry, a
-delete without `reassignTo` fails with `validation`. The error has `usage`
-(`{events, inboxItems, trackers, calendars}`) and `reassignTargets`
-(`[{id, name}]`). Show the counts and ask the user where the items go. Then
-send the delete again: `reassignTo: "<id>"` moves the links, and
-`reassignTo: null` clears them. An entry that nothing uses needs no
-`reassignTo`.
+If a live event, an Inbox item, an active tracker, or a calendar default uses
+the entry, a delete without `reassignTo` fails with `validation`. The error
+has `usage` (`{events, inboxItems, trackers, calendars}`) and `reassignTargets`
+(`[{id, name}]`). For a shared default or its copy, the counts cover both ids;
+deleted events and archived trackers are excluded. Show the counts and ask
+where the items go if the user has not already specified that choice.
+`reassignTo: "<id>"` moves the links, and `reassignTo: null` clears them.
+Include the user's choice in the first delete when it is already known.
+An entry with no live links needs no `reassignTo`.
 
 When an undo receipt is recorded, its `undoToken` (30-minute window) reverses
 the whole call (references/limits.md). The undo brings back the entry or the
