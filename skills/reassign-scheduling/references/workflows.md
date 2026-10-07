@@ -162,8 +162,8 @@ See references/calendars.md for the full surface. The flow:
    **propagates to the provider automatically** — no separate sync step. Surface
    the `undoToken` as usual.
 3. **Never** edit, move, or delete a `readOnly` event (a calendar the user
-   doesn't own — including a mirrored copy); the change reverts. Surface it as
-   context only.
+   doesn't own — including a mirrored copy); the tools refuse the change.
+   Surface it as context and direct the user to the owning calendar.
 4. To explain an imported event's classification, point at the calendar's
    `area`/`activityType`/`kind` policy and the account `aiClassify`/`aiRules`
    in `integrations` (calendars.md §Import policies). A `fixed` mode explains
