@@ -32,7 +32,7 @@ A `discard` of a day with nothing recorded returns `noop:true`, empty
 | `conflict` | the requested time is taken, a category name or an id is already in use, or a short busy state blocks the write | time: choose another slot. Name: reuse the id from the message, or pick another name. Busy state: retry once |
 | `not_found` | the referenced event, item, area, activity type, day, or token does not exist | re-read and resolve the target |
 | `stale` | an `undo_changes` token whose rows changed again after the write | the undo changed nothing; tell the user and do not retry the token |
-| `validation` | arguments are invalid, contradictory, or use an old field name or format | correct them |
+| `validation` | arguments are invalid, contradictory, or use an old field name or format; or a category delete that items use names no `reassignTo` | correct them. For a category delete, ask the user where the items go (taxonomy.md §Deleting safely) |
 | `rate_limited` | an abuse/request budget was exceeded | keep the draft and wait as directed |
 | `internal` | a backend operation failed | inspect the result before a bounded retry |
 
@@ -162,8 +162,8 @@ and changes nothing: retry it after a moment.
 A token is `stale` when a row that its write touched changed again later (a
 move, a park, a delete, a sync edit), or when it would delete a category that a
 later write uses. An undo that brings back a hidden shared default is also
-stale when a visible category now has its name. The undo then changes nothing and leaves
-the token active.
+stale when a visible category now has its name. The undo then changes nothing
+and leaves the token active.
 Tell the user, and offer to edit the current state instead. A sync that only
 stores the same values again does not make a token stale.
 

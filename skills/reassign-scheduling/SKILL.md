@@ -223,8 +223,8 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   `todoist`. A linked event carries its home `calendarId` (absent = the
   default calendar, `null` = dial only), any `mirrorCalendarIds`, and any
   `mirrorStyles` (the copy style per copy calendar). An event with
-  `readOnly: true` is from a calendar the user doesn't own — **never edit or
-  delete it**; the tools refuse the change.
+  `readOnly: true` is from a calendar the user does not own — **never edit
+  or delete it**; the tools refuse the change.
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly

@@ -200,9 +200,9 @@ target only when the user names a calendar, and resolve its id from
   `activityTypeId`, and `kind`; the server applies them first, in one
   transaction. `mirrorCalendarIds`, `mirrorStyles`, `recurrence`,
   `recurrenceEnd`, `sourceUrl`, and `focusIntervals` with `calendarId: null`
-  are a `validation` error. On an event that is already dial-only,
-  `calendarId: null` changes nothing; send `mirrorCalendarIds: []` to remove
-  its copies.
+  are a `validation` error. On an event that is already dial-only, the server
+  ignores `calendarId: null`, and the other fields apply as a normal `update`.
+  Send `mirrorCalendarIds: []` to remove its copies.
 - `mirrorCalendarIds` **replaces** the copy set; `[]` clears it. It must not
   contain the home `calendarId`. The server checks only the ids that the op
   adds: each must be a connected, writable calendar that is not a task list.
@@ -214,8 +214,9 @@ target only when the user names a calendar, and resolve its id from
   - an `update` that adds `recurrence` to a dial-only event with copies;
   - an `update` that adds `mirrorCalendarIds` to a dial-only series.
 
-  On `create`, an omitted `calendarId` counts as no home when the user has no
-  default calendar. To fix the error, set a `calendarId` or remove the copies.
+  An omitted `calendarId` on `create`, or an absent home on `update`, means the
+  default calendar. It counts as no home when the user has no default calendar.
+  To fix the error, set a `calendarId` or remove the copies.
 
 ## Copy styles
 
@@ -226,7 +227,10 @@ the user asks to hide details on a copy calendar.
 |---|---|---|---|
 | `full` | the event title | the event notes | a normal event |
 | `private` | the event title | the event notes | a private event |
-| `busy` | the `busyCopyTitle` of the copy calendar, else "Busy" | none | a private, busy event with no reminders |
+| `busy` | the `busyCopyTitle` of the copy calendar, else "Busy" | none | a private event with no reminders |
+
+A `private` or `busy` copy of a `blocking` event shows as busy. A copy of a
+`non_blocking` or `reference` event shows as free.
 
 - `mirrorStyles` on `create` or `update` maps a copy calendar id to a style.
   On `update`, it **replaces** the map; `{}` clears it. It is whole-series only.
