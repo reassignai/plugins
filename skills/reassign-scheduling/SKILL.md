@@ -225,10 +225,11 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   default calendar, `null` = dial only), any `mirrorCalendarIds`, and any
   `mirrorStyles` (the copy style per copy calendar). An event with
   `readOnly: true` is from a calendar the user does not own — **never edit,
-  move, or delete it**. `update`, `shift`, and `delete` refuse it, and `clear`
-  skips it. A `checklist` op, and a `reflect` mark on a past day, are allowed.
-  `calendarId: null` on `update` removes the link and keeps a local event that
-  the user can edit. Send it only when the user asks (references/calendars.md).
+  move, or delete it**. `update` (except `calendarId: null`), `shift`, and
+  `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
+  mark on a past day, are allowed. `calendarId: null` on `update` removes the
+  link and keeps a local event that the user can edit. Send it with no other
+  field, and only when the user asks (references/calendars.md).
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly

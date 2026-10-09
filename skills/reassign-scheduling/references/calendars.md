@@ -165,10 +165,11 @@ On each event in `get_schedule` / `find_event`:
   calendar.
 - `readOnly: true` — the event is from a calendar the user **does not own**.
   **Never edit, move, or delete it** via `write_events`/`delete_events`.
-  `update`, `shift`, and `delete` refuse it, and `clear` skips it. A
-  `checklist` op, and a `reflect` mark on a past day, are allowed. Surface it
-  as context and direct the user to the owning calendar. For a local event
-  that the user can edit, see `calendarId: null` in §Calendar targets.
+  `update` (except `calendarId: null`), `shift`, and `delete` refuse it, and
+  `clear` skips it. A `checklist` op, and a `reflect` mark on a past day, are
+  allowed. Surface it as context and direct the user to the owner's calendar.
+  For a local event that the user can edit, see `calendarId: null` in
+  §Calendar targets.
 - `meeting {url, label}` and `location {text, url?}` — present when the
   provider gives them.
 - `warning` — a start time that a DST change skips.
@@ -216,7 +217,8 @@ target only when the user names a calendar, and resolve its id from
 - `calendarId: null` also works on a `readOnly` event. The owner's event gets
   no delete and does not change. The provider deletes the copies of the event.
   The dial keeps a local event that the user can edit. It no longer gets the
-  owner's changes. Send it only when the user asks for a local event.
+  owner's changes. Send it with no other field, and only when the user asks
+  for a local event.
 - `mirrorCalendarIds` **replaces** the copy set; `[]` clears it. It must not
   contain the home `calendarId`. The server checks only the ids that the op
   adds: each must be a connected, writable calendar that is not a task list.
@@ -236,12 +238,13 @@ target only when the user names a calendar, and resolve its id from
 
   The `create` case always fails. The two `update` cases pass when the event
   was on a calendar before and the user then unlinked it. A read does not show
-  this, so send the op. On the error "Copies of a series need a home
-  calendar", set a `calendarId` or remove the copies.
+  this, so send the op.
 
   An omitted `calendarId` on `create`, or an absent home on `update`, means the
-  default calendar. It counts as no home when the user has no default calendar.
-  To fix the error, set a `calendarId` or remove the copies.
+  default calendar. It counts as no home when the user has no default calendar,
+  or when the default is on a source that is not `connected`. On the error
+  "Copies of a series need a home calendar", set a `calendarId` or remove the
+  copies.
 - A `scope:"future"` edit of a dial-only series gives the new series no
   copies. The earlier part keeps its copies. A tail that the edit makes a
   one-off with `recurrence:null` keeps its copies. Re-read the range after the
@@ -288,7 +291,8 @@ A connected event can be **mirrored** across calendars (it appears on more than
 one), and the user can **move** an event from one calendar to another. From the
 skill's side this reduces to the rules above:
 
-- A mirrored copy you don't own reads as `readOnly` — leave it. An owned event
+- A mirrored copy you don't own reads as `readOnly` — leave it, unless the
+  user asks for a local event (§Calendar targets). An owned event
   lists its copies in `mirrorCalendarIds`; editing it propagates to every copy,
   so you needn't touch the copies.
 - A calendar can also mirror its imported events on its own. The app sets this

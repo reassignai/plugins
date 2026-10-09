@@ -28,7 +28,7 @@ A `discard` of a day with nothing recorded returns `noop:true`, empty
 |---|---|---|
 | `permission` | a plan gate or an action restriction, such as parking a recurring, sleep, reviewed, or not-owned event | relay the message; offer an upgrade only for a plan gate |
 | `scope` | the connection lacks this OAuth scope | reconnect with the needed permission |
-| `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window | use the owning calendar/task app; for a source that is not connected, the user reconnects it in the app |
+| `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window | use the calendar or task app that owns it; for a `revoked` source, the user reconnects it in the app |
 | `conflict` | the requested time is taken, a category name or an id is already in use, or a short busy state blocks the write | time: choose another slot. Name: reuse the id from the message, or pick another name. Busy state: retry once |
 | `not_found` | the referenced event, item, area, activity type, day, or token does not exist | re-read and resolve the target |
 | `stale` | an `undo_changes` token whose rows changed again after the write | the undo changed nothing; tell the user and do not retry the token |
