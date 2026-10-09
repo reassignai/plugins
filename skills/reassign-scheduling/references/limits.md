@@ -28,7 +28,7 @@ A `discard` of a day with nothing recorded returns `noop:true`, empty
 |---|---|---|
 | `permission` | a plan gate or an action restriction, such as parking a recurring, sleep, reviewed, or not-owned event | relay the message; offer an upgrade only for a plan gate |
 | `scope` | the connection lacks this OAuth scope | reconnect with the needed permission |
-| `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window | use the owning calendar/task app |
+| `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window | use the calendar or task app that owns it; for a `revoked` source, the user reconnects it in the app |
 | `conflict` | the requested time is taken, a category name or an id is already in use, or a short busy state blocks the write | time: choose another slot. Name: reuse the id from the message, or pick another name. Busy state: retry once |
 | `not_found` | the referenced event, item, area, activity type, day, or token does not exist | re-read and resolve the target |
 | `stale` | an `undo_changes` token whose rows changed again after the write | the undo changed nothing; tell the user and do not retry the token |
@@ -155,7 +155,10 @@ has no `undoToken`: tell the user that this change has no undo. `undo_changes` t
 `tokens` (1 to 20) and returns only per-token `results`, in the order of
 `tokens`; an undo cannot itself be undone. It undoes the newest write first, so
 the token order does not matter. A token reverts one time: a second `undo_changes` of
-it is a `validation` row ("Nothing to undo for this token"). When a calendar
+it is a `validation` row ("Nothing to undo for this token"). A token past
+`expiresAt` is a `validation` row ("The 30-minute undo window has passed; the
+change stays."). A malformed token is `validation`, and a well-formed unknown
+token is `not_found`. Do not retry these tokens. When a calendar
 sync sends the same change at that moment, the undo row fails with `conflict`
 and changes nothing: retry it after a moment.
 

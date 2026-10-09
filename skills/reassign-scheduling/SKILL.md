@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.19.0"
+  version: "1.20.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -74,7 +74,8 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   it draws the interactive 24-hour dial inline.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
   connected, the `integrations` context and per-event `source`/`readOnly` flags
-  (see references/calendars.md). Never edit or delete a `readOnly` event.
+  (see references/calendars.md). Never edit, move, or delete a `readOnly`
+  event.
 
 ## Access and refusals
 
@@ -177,11 +178,11 @@ belonging to one day. Every rule below follows from that split.
   steps only. Ticking off is **always** per-occurrence: on a recurring series,
   use the `seriesId@YYYY-MM-DD` id from the read, so Monday's ticks can never
   land on Tuesday. A checkoff on a bare series id is refused.
-- **Local metadata, never synced.** Steps don't touch the block's name, time, or
-  kind, and they never propagate to **any** provider — not a calendar and not a
-  task app, whose own subtasks are a separate thing Reassign doesn't mirror. A
-  calendar-linked block carries steps safely; a `readOnly` event still can't be
-  written at all.
+- **Local metadata, never synced.** Steps do not touch the block's name, time,
+  or kind. The steps of a dial event never go to **any** provider: not a
+  calendar and not a task app. (A Microsoft To Do Inbox item is different; see
+  §Backlog.) A calendar-linked block carries steps safely. A `readOnly` event
+  also accepts a `checklist` op.
 - **Independent of reflect and focus intervals.** Every step being done does not
   mark the block `kept`, and a `kept` mark doesn't tick steps. Don't infer either
   from the other — report what the `checklist` block actually says.
@@ -223,8 +224,12 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   `todoist`. A linked event carries its home `calendarId` (absent = the
   default calendar, `null` = dial only), any `mirrorCalendarIds`, and any
   `mirrorStyles` (the copy style per copy calendar). An event with
-  `readOnly: true` is from a calendar the user does not own — **never edit
-  or delete it**; the tools refuse the change.
+  `readOnly: true` is from a calendar the user does not own — **never edit,
+  move, or delete it**. `update` (except `calendarId: null`), `shift`, and
+  `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
+  mark on a past day, are allowed. `calendarId: null` on `update` removes the
+  link and keeps a local event that the user can edit. Send it with no other
+  field, and only when the user asks (references/calendars.md).
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
@@ -366,11 +371,12 @@ active-trial/subscription access as the rest of MCP.
   `checklist: {items:[{id?, text}]}` (≤50 items, ≤200 chars each). It
   **replaces the whole list**, so send every item you want kept (keep the ids
   from the read); `items: []` clears them. Template-only — a parked block has no
-  occurrence, so there's nothing to tick off until it's scheduled onto the dial
-  (§Microtasks). The steps survive the park ↔ place round-trip, so breaking a
-  parked intention down now isn't wasted work. A `park` also keeps the ticked
-  steps, but the item read does not show them. A later `schedule` as a one-off
-  event gives them back.
+  occurrence, so there is nothing to tick off until `schedule` puts it on the
+  dial (§Microtasks). The steps survive the park ↔ place round-trip, so a
+  breakdown of a parked intention now is not wasted work. A `park` also keeps
+  the ticked steps, but the item read does not show them. A later `schedule`
+  as a one-off event gives them back. The checklist of a Microsoft To Do Inbox
+  item syncs both ways with the task in To Do.
 - A recorded `undoToken` reverses the whole call with `undo_changes`.
   `schedule` and `park` are also **inverses** for use after the window.
 
@@ -537,13 +543,22 @@ Treat the tray as a first-class part of the plan, not a side list:
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
   it is refused. Series-level fields (`calendarId`, `mirrorCalendarIds`,
-  `mirrorStyles`, `sourceUrl`) are refused on one occurrence unless they equal
-  the current value. `recurrence:null` turns a series back into a one-off.
+  `mirrorStyles`, `sourceUrl`) are refused on one occurrence and with
+  `scope:"future"`, unless they equal the current value. Send them on the bare
+  series id. `recurrence:null` turns a series back into a one-off.
   When a new rule skips the anchor day, the result carries `firstOccurrence`.
 - Target each event id at most once per call, and each series with at most
   one `scope:"future"` op and not also its bare id. `render:true` repaints.
-- `delete_events`: `delete` by `id` (same id rules), or `clear` with
-  `from`+`to`; `clear` keeps `readOnly` events (`skippedReadOnly`).
+- `delete_events`: `delete` by `id` (same id rules; `scope:"future"` on an
+  occurrence id returns the truncated series in `updated`), or `clear` with
+  `from`+`to`. To remove only obsolete events, `delete` them by id.
+- `clear` takes 31 days at most; a `to` before `from` fails with `validation`.
+  `clear` removes **every** event in the range that is not `readOnly`. This
+  includes sleep, `reference`, and `non_blocking` events, and owned
+  calendar-linked events. The provider deletes the linked events too. Confirm
+  a `clear` with the user first. The result has `breakdown` (`oneOff`,
+  `recurringOccurrence`, `override`), up to 50 `items` (`date`, `name`),
+  `truncated`, and a `skippedReadOnly` count when it kept `readOnly` events.
 - Create areas/types with `manage_categories` before you
   reference them; un-timed blocks go through `manage_inbox` (§Backlog).
   A category delete with live links needs `reassignTo` (id or `null`). Ask for

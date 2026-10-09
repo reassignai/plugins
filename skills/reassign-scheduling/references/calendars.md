@@ -96,21 +96,27 @@ check each source's `status` before describing sync as active. Shape:
   quoted/labeled references and `set Area to …` clauses; no warnings does not
   certify arbitrary prose rules. Omitted with `includeLookups:false`.
 - `defaultCalendarId` (optional) — the calendar new dial events publish to
-  by default. Absent if the user hasn't set one (or it's no longer writable).
+  by default. Absent if the user has not set one, or if it is no longer
+  writable. The read does not check the source `status`. A write treats a
+  default on a source that is not `connected` as no default. This also applies
+  to the home rule of series copies (§Calendar targets).
   It is also the default Source of a new Inbox item: a task list default
   creates each new capture as a task (SKILL.md §Inbox Source).
 - `sources[]` — one per connected account: `provider`, `status`
   (`connected` is the only one that syncs; also `disconnected`, `error`,
   `pending`, `revoked`), `account` (the account name at the provider, often an
   email), and `calendars[]`. Use `account` to tell apart two calendars with the
-  same name.
-- Each calendar: `id`, `name`, `writable` (only a writable calendar is a valid
-  `calendarId`), an optional `timezone` (the provider zone of the calendar,
-  information only: every span uses the top-level `timezone`), and the import
-  policy (below). A writable calendar of a calendar source (not a task list)
-  also has `copyStyle`: the default style of copies on it (§Copy styles). With
-  `copyStyle: "busy"`, `busyCopyTitle` gives the copy title. A `null` title
-  means "Busy".
+  same name. On `revoked`, the user must reconnect the account in the app.
+  MCP cannot reconnect it.
+- Each calendar: `id`, `name`, `writable`, an optional `timezone` (the
+  provider zone of the calendar, information only: every span uses the
+  top-level `timezone`), and the import policy (below). A writable calendar of
+  a calendar source (not a task list) also has `copyStyle`: the default style
+  of copies on it (§Copy styles). With `copyStyle: "busy"`, `busyCopyTitle`
+  gives the copy title. A `null` title means "Busy". A valid `calendarId` is
+  `writable` **and** on a `connected` source. The `writable` flag does not
+  check the source `status`. A write to a calendar on a source that is not
+  connected fails with `read_only`.
 
 Use the visible facts to explain where new events sync (`defaultCalendarId`)
 or why a source is not importing (`status` ≠ connected). A source entry alone
@@ -157,10 +163,13 @@ On each event in `get_schedule` / `find_event`:
   calendar's name in `integrations`. Changed recurring occurrences inherit the
   series' calendar, mirrors, and copy styles unless the occurrence has its own
   calendar.
-- `readOnly: true` — the event is from a calendar the user **doesn't own**.
-  **Never edit, move, or delete it** via `write_events`/`delete_events`: the
-  tools refuse the change. Surface it as context and direct the user to the
-  owning calendar.
+- `readOnly: true` — the event is from a calendar the user **does not own**.
+  **Never edit, move, or delete it** via `write_events`/`delete_events`.
+  `update` (except `calendarId: null`), `shift`, and `delete` refuse it, and
+  `clear` skips it. A `checklist` op, and a `reflect` mark on a past day, are
+  allowed. Surface it as context and direct the user to the owner's calendar.
+  For a local event that the user can edit, see `calendarId: null` in
+  §Calendar targets.
 - `meeting {url, label}` and `location {text, url?}` — present when the
   provider gives them.
 - `warning` — a start time that a DST change skips.
@@ -203,21 +212,43 @@ target only when the user names a calendar, and resolve its id from
   are a `validation` error. On an event that is already dial-only, the server
   ignores `calendarId: null`, and the other fields apply as a normal `update`.
   Send `mirrorCalendarIds: []` to remove its copies.
+- When the read shows no `calendarId` and no copies, `calendarId: null` fails
+  with `validation` ("nothing to unlink"). Omit it.
+- `calendarId: null` also works on a `readOnly` event. The owner's event gets
+  no delete and does not change. The provider deletes the copies of the event.
+  The dial keeps a local event that the user can edit. It no longer gets the
+  owner's changes. Send it with no other field, and only when the user asks
+  for a local event.
 - `mirrorCalendarIds` **replaces** the copy set; `[]` clears it. It must not
   contain the home `calendarId`. The server checks only the ids that the op
   adds: each must be a connected, writable calendar that is not a task list.
   An id already on the event may stay, also when its calendar is read-only or
   disconnected now. An op that adds no copy id, no new or changed copy style,
   and no new `calendarId` needs no Pro plan.
+- Errors of a calendar target: an unknown calendar id is `not_found`. A
+  read-only, disconnected, or gone calendar is `read_only`. These are
+  `validation`: a task list as a copy, a repeated copy id, or the home id in
+  the copies. A `mirrorStyles` key that is not a copy is also `validation`.
+  Without Pro, an op that needs Pro fails with `permission`.
 - Copies of a series need a home calendar. These ops fail with `validation`:
   - a `create` with `recurrence`, `calendarId: null`, and a nonempty
     `mirrorCalendarIds`;
   - an `update` that adds `recurrence` to a dial-only event with copies;
   - an `update` that adds copies to a dial-only series.
 
+  The `create` case always fails. The two `update` cases pass when the event
+  was on a calendar before and the user then unlinked it. A read does not show
+  this, so send the op.
+
   An omitted `calendarId` on `create`, or an absent home on `update`, means the
-  default calendar. It counts as no home when the user has no default calendar.
-  To fix the error, set a `calendarId` or remove the copies.
+  default calendar. It counts as no home when the user has no default calendar,
+  or when the default is on a source that is not `connected`. On the error
+  "Copies of a series need a home calendar", set a `calendarId` or remove the
+  copies.
+- A `scope:"future"` edit of a dial-only series gives the new series no
+  copies. The earlier part keeps its copies. A tail that the edit makes a
+  one-off with `recurrence:null` keeps its copies. Re-read the range after the
+  edit.
 
 ## Copy styles
 
@@ -260,7 +291,8 @@ A connected event can be **mirrored** across calendars (it appears on more than
 one), and the user can **move** an event from one calendar to another. From the
 skill's side this reduces to the rules above:
 
-- A mirrored copy you don't own reads as `readOnly` — leave it. An owned event
+- A mirrored copy you don't own reads as `readOnly` — leave it, unless the
+  user asks for a local event (§Calendar targets). An owned event
   lists its copies in `mirrorCalendarIds`; editing it propagates to every copy,
   so you needn't touch the copies.
 - A calendar can also mirror its imported events on its own. The app sets this
