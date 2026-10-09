@@ -131,8 +131,11 @@ their fields. Re-read the range after the split before making another edit.
    rename / re-area / re-type) and `shift` (nudge by `byMinutes`) ops — batched
    so the day re-flows atomically. Target each event id once per call.
 3. Re-insert buffers that the reshuffle collapsed.
-4. Clear anything obsolete with `delete_events` (`clear` a `from`..`to` range,
-   equal for one day; `delete` by id). A returned `undoToken` reverses the call.
+4. Remove anything obsolete with `delete_events` `delete` by id. Use `clear`
+   (a `from`..`to` range, equal for one day) only to empty the range: it
+   removes every event that is not `readOnly`, also sleep and references
+   (SKILL.md §Workflow: reshuffle / bulk edits). A returned `undoToken`
+   reverses the call.
 5. `show_day`; surface the `undoToken`.
 
 ## Find and edit an event or Inbox item without an id
@@ -162,8 +165,11 @@ See references/calendars.md for the full surface. The flow:
    **propagates to the provider automatically** — no separate sync step. Surface
    the `undoToken` as usual.
 3. **Never** edit, move, or delete a `readOnly` event (a calendar the user
-   doesn't own — including a mirrored copy); the tools refuse the change.
-   Surface it as context and direct the user to the owning calendar.
+   does not own — also a mirrored copy). `update`, `shift`, and `delete`
+   refuse it, and `clear` skips it. A `checklist` op, and a `reflect` mark on
+   a past day, are allowed. Surface it as context and direct the user to the
+   owning calendar. Unlink it with `calendarId: null` only when the user asks
+   for a local event (calendars.md §Calendar targets).
 4. To explain an imported event's classification, point at the calendar's
    `area`/`activityType`/`kind` policy and the account `aiClassify`/`aiRules`
    in `integrations` (calendars.md §Import policies). A `fixed` mode explains

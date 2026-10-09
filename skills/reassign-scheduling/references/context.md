@@ -8,6 +8,8 @@ Use `find_event {query}` when you know a name but need an id. It returns
 
 - **Events** match fuzzily and return best match first. The default window is
   the past week through the next 30 days; `from`/`to` change that window.
+  The window spans 92 days at most. A wider range, or a `to` before `from`,
+  fails with `validation`.
   The inclusive date range matches any actual event overlap, including an
   overnight event that started earlier. An event ending exactly at the first
   day's midnight does not overlap. `timeOfDay` filters the event's actual
