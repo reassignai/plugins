@@ -99,11 +99,10 @@ to both: it decides whether an event *occupies time*.
   `calendarId: null` (unlink) can change the kind, because the event is local
   after the op. This also works on a `readOnly` all-day event.
 - `loadByArea`/`loadByActivityType`/`loadByProject` and the free-slot math
-  do not count non-blocking minutes;
-  when present they surface separately as `nonBlockingLoadByArea` /
-  `nonBlockingLoadByActivityType` (there is no `nonBlockingLoadByProject`).
-  So "where did my time go" still accounts for a day of mostly sleep/fasting,
-  without those bands pretending to block work.
+  do not count non-blocking minutes. When present, those minutes show
+  separately as `nonBlockingLoadByArea` / `nonBlockingLoadByActivityType`
+  (there is no `nonBlockingLoadByProject`). So "where did my time go" still
+  accounts for a day of mostly sleep/fasting, and those bands do not block work.
 - **reference** is see-only: never move, delete, or schedule work *into* it
   unless the user explicitly asks. Treat it as information, not a commitment.
 
@@ -254,8 +253,8 @@ target only when the user names a calendar, and resolve its id from
 - `calendarId: null` also works on a `readOnly` event. The owner's event gets
   no delete and does not change. The provider deletes the copies of the event.
   The dial keeps a local event that the user can edit. It no longer gets the
-  owner's changes. Send it with no other field, and only when the user asks
-  for a local event.
+  owner's changes. Send it only when the user asks for a local event. The op
+  may carry the same edit fields as any unlink; the readOnly gate skips them.
 - `mirrorCalendarIds` **replaces** the copy set; `[]` clears it. It must not
   contain the home `calendarId`. The server checks only the ids that the op
   adds: each must be a connected, writable calendar that is not a task list.

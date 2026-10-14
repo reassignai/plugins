@@ -160,7 +160,7 @@ from a per-occurrence **done set** (the ticks of one day).
   It **replaces the whole list**, so add, rename, remove, and reorder are all
   expressed as the resulting list: read the current items first, then send the
   full list you want kept. Keep an existing item's `id` to preserve its checked
-  state; omit `id` to add a new step. `items: []` clears the checklist.
+  state (not on a bare series id; see Addressing); omit `id` to add a new step. `items: []` clears the checklist.
 - **Tick steps off** with the same op and `check` / `uncheck`:
   `{op:"checklist", id, check:["<item id>"]}`. Each entry must be an item `id`
   from a read; text does not match. An unknown id fails the op with
@@ -219,8 +219,8 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   move, or delete it**. `update` (except `calendarId: null`), `shift`, and
   `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
   mark on a past day, are allowed. `calendarId: null` on `update` removes the
-  link and keeps a local event that the user can edit. Send it with no other
-  field, and only when the user asks (references/calendars.md).
+  link and keeps a local event that the user can edit. Send it only when the
+  user asks. It may carry the unlink edits (references/calendars.md).
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
@@ -304,22 +304,24 @@ active-trial/subscription access as the rest of MCP.
   (§Projects and priority), plus `notes`, `sourceUrl`, `durationMinutes`,
   `plannedDate`, `plannedUntil`, and `checklist` when set. There is no
   `overdue` flag: compare the end of the planned day/window with `now`
-  yourself. These filters need `includeBacklog:true` (else `validation`), and
-  you can use them together: `backlogPlannedOn` (ISO date) keeps the blocks
-  whose planned day or window covers that day; `backlogProjectId` keeps one
-  project id, or `"none"` for no project (an unknown id matches nothing, no
-  error); `backlogMinPriority` (0–4) keeps `priority` >= the value. Use
-  `find_event {query}` for name search; it has no project or priority filter
-  (references/context.md).
+  yourself. Use `find_event {query}` for name search; it has no project or
+  priority filter (references/context.md). `manage_inbox` is the write surface.
+- **Filters.** These filters need `includeBacklog:true` (else `validation`).
+  You can use them together:
+  - `backlogPlannedOn` (ISO date) keeps the blocks whose planned day or window
+    covers that day.
+  - `backlogProjectId` keeps one project id, or `"none"` for no project. An
+    unknown id matches nothing and gives no error.
+  - `backlogMinPriority` (0–4) keeps `priority` >= the value.
+
   An **overdue block never matches a today/future filter** (its window has
   passed); use an unfiltered read when looking for overdue work.
-  `manage_inbox` is the write surface.
 - **Pagination.** Item reads return `nextBacklogOffset` (null when complete),
-  and `backlogMatchedCount` only when a filter is set (a `backlogMinPriority: 0`
-  filter also counts as set). Follow a non-null offset with `backlogOffset` and the same
-  filters until the requested scope is covered; the first page is not the
-  whole Inbox. After a tray write, restart pagination because its order may
-  change.
+  and `backlogMatchedCount` only when a filter is set (a
+  `backlogMinPriority: 0` filter also counts as set). Follow a non-null offset
+  with `backlogOffset` and the same filters until the requested scope is
+  covered; the first page is not the whole Inbox. After a tray write, restart
+  pagination because its order may change.
 - **Write** through `manage_inbox` (`ops`, ≤50, atomic by
   default — set `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
@@ -441,8 +443,8 @@ Treat the tray as a first-class part of the plan, not a side list:
   Check that it still matters, then offer to place it today, re-plan it
   (`update`), send it to Someday (`plannedDate: null`), or `remove` it.
 - **Review sweeps leftovers back.** Offer to `park` a skipped or unfinished
-  block instead of dropping it. `park` refuses an event that has a reflect
-  status, so park it *before* marking the day, or `capture` a fresh block after.
+  block; do not drop it. `park` refuses an event that has a reflect status, so
+  park it *before* you mark the day, or `capture` a fresh block after.
 
 ## Projects and priority
 
@@ -522,8 +524,9 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
    availability; there is no separate free-slot tool.
 2. Place demanding work in the user's stated peak window and admin/shallow work
    in the trough.
-3. If `backlogCount > 0`, offer a parked block before new work, in the order
-   of §Planning with backlog.
+3. If `backlogCount > 0`, offer a parked block before new work. Offer the
+   blocks planned for the slot's day first, then use the order of
+   §Planning with backlog.
 4. Place an authorized new block with `write_events` `create`, using the
    chosen `start` and `end`. Use a `manage_inbox` `schedule` op for a parked
    block. If the user still needs to choose, offer the slot before writing.

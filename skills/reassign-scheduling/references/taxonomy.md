@@ -37,8 +37,8 @@ row arrays `areas` and `activityTypes`, and `projects` when the call sent
 project ops (§Projects). Each array is indexed on its own input array. A create
 or update row is the `created`/`updated` object `{id, name, color | pattern}`.
 A delete row lists `deletedIds`. The first id is the id that you sent. When a
-shared default has a user copy, deleting either one lists both ids (§Deleting
-safely).
+shared default has a user copy, a delete of either one lists both ids
+(§Deleting safely).
 When `reassignTo` is an id, the row also has `movedEvents`, the number of moved
 events. A `create` or a rename into a name that an entry of the same kind
 already has fails with `conflict`. The match ignores case, accents, and extra
