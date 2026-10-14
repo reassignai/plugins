@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.20.0"
+  version: "1.21.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -50,8 +50,9 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
 
 - Call `get_schedule` before proposing or changing times — in a
   single call it anchors `now`, the user's `areas`, `activityTypes`,
-  `userPreferences`, existing events, and the day's free slots + area/type
-  load. `from` and `to` are required; use the same date for one day.
+  `projects`, `userPreferences`, existing events, and the day's free slots +
+  area/type/project load. `from` and `to` are required; use the same date for
+  one day.
   Optional `minDuration` (integer minutes, 1–1440) filters only `freeSlots`;
   it leaves events visible and does not book or resize a slot.
   It also reports `backlogCount` (parked, un-timed blocks); set
@@ -59,7 +60,8 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   planned for a day (see §Backlog). Use `find_event {query}` to search events
   and Inbox items by name.
   On a later read in the same task, `includeLookups:false` leaves out `areas`,
-  `activityTypes`, and `integrations`. `userPreferences` and `timezone` stay.
+  `activityTypes`, `projects`, and `integrations`. `userPreferences` and
+  `timezone` stay.
 - A date is `YYYY-MM-DD`. A time is a local datetime `YYYY-MM-DDTHH:MM` in the
   top-level `timezone`, with no seconds and no offset. Every span is `start` +
   `end`; an overnight span ends on the next day. A slot to midnight ends at
@@ -102,10 +104,11 @@ event carries it. Set it with `kind` on a `write_events` create/update or a
 `manage_inbox` capture/update.
 
 - **blocking** (default) — occupies time, cannot overlap; counts in
-  `loadByArea`/`loadByActivityType` and consumes free slots.
+  `loadByArea`/`loadByActivityType`/`loadByProject` and consumes free slots.
 - **non_blocking** — an overlay band (sleep, fasting, commute) that may overlap
   anything and never conflicts. It does *not* consume free slots; its minutes
-  surface separately as `nonBlockingLoadByArea`/`nonBlockingLoadByActivityType`.
+  surface separately as `nonBlockingLoadByArea`/`nonBlockingLoadByActivityType`
+  (no project load).
   Use it when the user wants something present on the dial without it blocking
   scheduling.
 - **reference** — see-only (a memo): something the user wants to *view* but
@@ -141,14 +144,10 @@ reflection, and live-mode details.
 ## Microtasks (steps inside a block)
 
 An event can carry an ordered **microtask checklist** — the steps that make the
-block up ("Outline", "Draft the intro", "Send it"). This is the ADHD chunking
-move made concrete without fragmenting the dial: the block stays *one* block, and
-the steps live inside it. Microtasks work on **any** `kind`, not only blocking
-blocks, and use the same subscription access as the other tools.
-
-The model mirrors the focus-interval pair: a **template** — the steps, shared
-across a recurring series — and a per-occurrence **done set** — the ticks,
-belonging to one day. Every rule below follows from that split.
+block up ("Outline", "Draft the intro", "Send it"). The block stays *one* block
+on the dial. Microtasks work on **any** `kind` with the same access as the
+other tools. A **template** (the steps, shared across a series) is separate
+from a per-occurrence **done set** (the ticks of one day).
 
 - **Read.** A block that carries steps serializes a `checklist` block:
   `{items: [{id, text, done}]}`. There is no `done`/`total` count; count the
@@ -161,7 +160,7 @@ belonging to one day. Every rule below follows from that split.
   It **replaces the whole list**, so add, rename, remove, and reorder are all
   expressed as the resulting list: read the current items first, then send the
   full list you want kept. Keep an existing item's `id` to preserve its checked
-  state; omit `id` to add a new step. `items: []` clears the checklist.
+  state (not on a bare series id; see Addressing); omit `id` to add a new step. `items: []` clears the checklist.
 - **Tick steps off** with the same op and `check` / `uncheck`:
   `{op:"checklist", id, check:["<item id>"]}`. Each entry must be an item `id`
   from a read; text does not match. An unknown id fails the op with
@@ -177,40 +176,32 @@ belonging to one day. Every rule below follows from that split.
   the template of the whole series; a `seriesId@YYYY-MM-DD` id edits one day's
   steps only. Ticking off is **always** per-occurrence: on a recurring series,
   use the `seriesId@YYYY-MM-DD` id from the read, so Monday's ticks can never
-  land on Tuesday. A checkoff on a bare series id is refused.
+  land on Tuesday. A checkoff on a bare series id is refused. On a bare series
+  id, the server does not store `done` in `items`, and the edit clears ticks
+  that the series base held; a recurring `create` also drops `done` from its
+  starter list. On a one-off event, `done` in `items` sets the state.
 - **Local metadata, never synced.** Steps do not touch the block's name, time,
   or kind. The steps of a dial event never go to **any** provider: not a
   calendar and not a task app. (A Microsoft To Do Inbox item is different; see
   §Backlog.) A calendar-linked block carries steps safely. A `readOnly` event
   also accepts a `checklist` op.
-- **Independent of reflect and focus intervals.** Every step being done does not
-  mark the block `kept`, and a `kept` mark doesn't tick steps. Don't infer either
-  from the other — report what the `checklist` block actually says.
-- **Parked blocks carry steps too**, as a `checklist` with no `done` state
-  (there's no occurrence to tick against until they're placed) — see §Backlog.
-  A `park` keeps the ticks but hides them, and a later one-off `schedule`
-  gives them back.
-- **Write steps directly.** Reassign also has an in-app AI breakdown
-  (`/microtasks`), but you can propose the steps here and write them with the
-  checklist op. There is no need to invoke a second AI workflow.
+- **Independent of reflect and focus intervals.** Done steps do not mark the
+  block `kept`, and a `kept` mark ticks no step. Do not infer one from the
+  other. Parked blocks carry steps with no `done` (§Backlog).
+- **Write steps directly** with the checklist op. The in-app AI breakdown
+  (`/microtasks`) is not necessary.
 
 ### Planning with microtasks
 
-- **Break down what's stalling, not everything.** Reach for steps when a block
-  is vague, dreaded, or big enough that starting is the hard part ("Taxes",
-  "Write the proposal") — the first step should be small enough to begin in under
-  five minutes (adhd-methods.md §chunking). A 30-minute errand doesn't need a
-  checklist, and steps on everything are just noise.
-- **Size the steps to the block.** Roughly one step per focus interval on a block
-  that carries a rhythm, and few enough that the list fits the block's length —
-  a 45-minute block with twelve steps is a plan to fail.
+- **Break down what stalls, not everything.** Add steps when a block is vague,
+  dreaded, or big ("Taxes"); make the first step one that starts in under five
+  minutes (adhd-methods.md §chunking). A 30-minute errand needs no checklist.
+- **Size the steps to the block.** Use about one step per focus interval, and
+  few enough to fit the block: a 45-minute block with twelve steps will fail.
 - **Respect authorization.** If asked to add steps, write a small, concrete
   list; otherwise propose it first. Do not ask again after the user has agreed.
-- **Never tick on the user's behalf.** Only `check` a step when the user says it
-  happened. A speculative tick corrupts the record they're going to reflect on.
-- **Leftover steps are the next intention.** When a block's steps are partly
-  done, the unticked ones are what carries forward — offer to `capture` them
-  into the backlog rather than letting them vanish with the day.
+- **Leftover steps are the next intention.** Offer to `capture` the unticked
+  steps of a partly done block into the backlog.
 
 ## Calendar sync
 
@@ -228,8 +219,8 @@ Todoist), whose lists or projects surface as calendars. The essentials:
   move, or delete it**. `update` (except `calendarId: null`), `shift`, and
   `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
   mark on a past day, are allowed. `calendarId: null` on `update` removes the
-  link and keeps a local event that the user can edit. Send it with no other
-  field, and only when the user asks (references/calendars.md).
+  link and keeps a local event that the user can edit. Send it only when the
+  user asks. It may carry the unlink edits (references/calendars.md).
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
@@ -309,42 +300,50 @@ active-trial/subscription access as the rest of MCP.
 
 - **Read** through `get_schedule`: `backlogCount` is the true tray total (absent
   for an empty tray). `includeBacklog:true` gives items, top first, 50 a page.
-  Each item is `{id, name, kind, areaId, activityTypeId}`, plus `notes`,
-  `sourceUrl`, `durationMinutes`, `plannedDate`, `plannedUntil`, and
-  `checklist` when set. There is no `overdue` flag: compare the end of the
-  planned day/window with `now` yourself. `backlogPlannedOn` (ISO date) needs
-  `includeBacklog:true` and narrows to the blocks whose planned day or window
-  covers that day. Use `find_event {query}` for name search (references/context.md).
+  Each item is `{id, name, kind, areaId, activityTypeId, projectId, priority}`
+  (§Projects and priority), plus `notes`, `sourceUrl`, `durationMinutes`,
+  `plannedDate`, `plannedUntil`, and `checklist` when set. There is no
+  `overdue` flag: compare the end of the planned day/window with `now`
+  yourself. Use `find_event {query}` for name search; it has no project or
+  priority filter (references/context.md). `manage_inbox` is the write surface.
+- **Filters.** These filters need `includeBacklog:true` (else `validation`).
+  You can use them together:
+  - `backlogPlannedOn` (ISO date) keeps the blocks whose planned day or window
+    covers that day.
+  - `backlogProjectId` keeps one project id, or `"none"` for no project. An
+    unknown id matches nothing and gives no error.
+  - `backlogMinPriority` (0–4) keeps `priority` >= the value.
+
   An **overdue block never matches a today/future filter** (its window has
   passed); use an unfiltered read when looking for overdue work.
-  `manage_inbox` is the write surface.
 - **Pagination.** Item reads return `nextBacklogOffset` (null when complete),
-  and `backlogMatchedCount` only when `backlogPlannedOn` is set. Follow a non-null
-  offset with `backlogOffset` and the same filter until the requested scope is
+  and `backlogMatchedCount` only when a filter is set (a
+  `backlogMinPriority: 0` filter also counts as set). Follow a non-null offset
+  with `backlogOffset` and the same filters until the requested scope is
   covered; the first page is not the whole Inbox. After a tray write, restart
   pagination because its order may change.
 - **Write** through `manage_inbox` (`ops`, ≤50, atomic by
   default — set `partial:true` for best-effort). Each op is one of:
   - `capture` — create a parked block (`name`, optional `notes`,
     `durationMinutes` (5–1440), `kind` (default `blocking`),
-    `areaId`/`activityTypeId`, an optional `plannedDate` or
-    `plannedDate`+`plannedUntil` window, optional `checklist`, optional
-    `calendarId` — see §Inbox Source, and optional `sourceUrl`/`enrich` — see
-    §Captured from a page).
+    `areaId`/`activityTypeId`, `projectId`, `priority`, an optional
+    `plannedDate` or `plannedDate`+`plannedUntil` window, optional
+    `checklist`, optional `calendarId` — see §Inbox Source, and optional
+    `sourceUrl`/`enrich` — see §Captured from a page).
   - `capture_text` — give raw user input as `text` (1–2000 chars): a pasted
     list, a dictation transcript, a page selection. Reassign's AI splits it
     into 1–10 blocks, each with a name, and notes, a length, a day (today to a
     year out, in the user's zone) and a `checklist` when the text gives them.
     The optional `notes`, `durationMinutes`, `kind`, `areaId`/`activityTypeId`,
-    `plannedDate`/`plannedUntil`, `sourceUrl` and `calendarId` go to every
-    block and win over the AI; send one only when the user chose it. There is
-    no `name` or `checklist` field. The result is `{created: [item…], source}` in the text
-    order. `source: "text"` means the AI did not run: no plan access, a model
-    failure or timeout, or more than 5 `capture_text` ops in one batch. Then
-    the first line is the name and the other lines are the notes. It never
-    fails for that reason, so do not retry it. One undo removes every block.
-    Use `capture` when the user names a task, because a name the user chose
-    must stand.
+    `projectId`, `priority`, `plannedDate`/`plannedUntil`, `sourceUrl` and
+    `calendarId` go to every block and win over the AI; send one only when the
+    user chose it. There is no `name` or `checklist` field. The result is
+    `{created: [item…], source}` in the text order. `source: "text"` means
+    the AI did not run: no plan access, a model failure or timeout, or more
+    than 5 `capture_text` ops in one batch. Then the first line is the name
+    and the other lines are the notes. It never fails for that reason, so do
+    not retry it. One undo removes every block. Use `capture` when the user
+    names a task, because a name the user chose must stand.
   - `update` — edit one by `id`. An omitted field keeps its value; `null` on
     `areaId`/`activityTypeId` clears the link. `plannedDate: null` moves it back
     to Someday (clearing any window end); `plannedUntil: null` collapses the
@@ -356,17 +355,18 @@ active-trial/subscription access as the rest of MCP.
   - `remove` — delete one by `id`.
   - `schedule` — **place** a parked block (`id`) on the dial at `start` (a
     local datetime; its `durationMinutes` sizes it; set `recurrence` to repeat)
-    and lift it off the tray. The new event takes the item's `kind`. It obeys
-    the event rules: a span of 5 minutes to 168 hours, and an overlap with a
-    blocking event fails with `conflict` plus `nearestSlots`. An earlier `park`
-    in the same call frees its time.
+    and lift it off the tray. The new event takes the item's `kind`,
+    `projectId`, and `priority`. It obeys the event rules: a span of 5 minutes
+    to 168 hours, and an overlap with a blocking event fails with `conflict`
+    plus `nearestSlots`. An earlier `park` in the same call frees its time.
   - `park` — **move** a dial event (`id`) back into the tray; the item keeps the
-    event's `kind`. Works only on a native or owned-calendar one-off that hasn't
-    been reviewed; a recurring, sleep, reviewed, or not-owned event is refused
-    with `permission` (relay the reason). Parking a calendar-linked event
-    removes its calendar copy but remembers the calendar, so re-scheduling
-    republishes there. The item gets a new `id` (`deletedIds` holds the event
-    id) and keeps the event's day as `plannedDate`.
+    event's `kind`, `projectId`, and `priority`. Works only on a native or
+    owned-calendar one-off that has not been reviewed; a recurring, sleep,
+    reviewed, or not-owned event is refused with `permission` (relay the
+    reason). A park of a calendar-linked event removes its calendar copy but
+    remembers the calendar, so a new schedule republishes there. The item
+    gets a new `id` (`deletedIds` holds the event id) and keeps the event's
+    day as `plannedDate`.
 - **Microtasks on a parked block.** `capture` and `update` both take
   `checklist: {items:[{id?, text}]}` (≤50 items, ≤200 chars each). It
   **replaces the whole list**, so send every item you want kept (keep the ids
@@ -388,7 +388,7 @@ new item.
 | `calendarId` | Effect |
 |---|---|
 | a task list `id` | The item is also created as a task in that list. The id must be a writable task list from `integrations.sources[].calendars[]`. |
-| omitted | The item takes `integrations.defaultCalendarId`. A task list default creates a task for **every** plain capture. A calendar default publishes the item when it is placed. No default: Reassign only. |
+| omitted | When the item has a `projectId` and that project has a default task list ("New tasks go to"), the server puts the item in that list. If that list cannot take a new item, the item stays in Reassign only. Else the item takes `integrations.defaultCalendarId`. A task list default creates a task for **every** plain capture. A calendar default publishes the item when it is placed. No default: Reassign only. |
 | `null` | Reassign only, also when a default is set or the text names a list. |
 
 - On `capture_text` with no `calendarId`, the AI sends an item to a list only
@@ -398,9 +398,10 @@ new item.
   a list that cannot take a new item is `validation`.
 - The task is created after the call returns. A failed create leaves the item
   in Reassign only. The undo deletes the task in its app (Linear closes it).
-- The item read in `get_schedule` does not show the Source of an item.
+- `get_schedule` does not show the Source of an item or the default list of
+  a project.
 - Send a `calendarId` only when the user named the list. Tell the user when a
-  task list default will also create the task.
+  project or account default list will also create the task.
 
 ### Captured from a page
 
@@ -426,31 +427,58 @@ grabbed off a real page — not for an intention the user typed or dictated.
 
 Treat the tray as a first-class part of the plan, not a side list:
 
-- **Capture instead of cram.** When a task has no clear time, the day is
-  already full, or the user is rattling off more than fits, `capture` it to the
-  backlog rather than forcing a block onto the dial. Parking reduces overwhelm —
-  it's the externalize step, not a failure to schedule. When the user names a
-  day but no time ("sometime Friday", "over the weekend"), capture with a
-  `plannedDate` (or window) instead of inventing a start time — penciling in a
-  day is a commitment level of its own.
-- **Plan-the-day pulls from the tray — planned-for-today first.** When filling
-  free slots or the user says "plan my day", read `includeBacklog:true` and
-  follow pagination for the complete tray with its planned fields. Offer blocks planned for
-  today and overdue ones first, then by importance, dependencies, and fit, honoring
-  area/type + energy (demanding parked work → a peak; admin → the dip). Don't
-  place silently; propose, then use `manage_inbox` with a `schedule` op. Reserve
-  `backlogPlannedOn` for the direct question ("what did I plan for Friday?").
+- **Capture instead of cram.** When a task has no clear time, the day is full,
+  or the user lists more than fits, `capture` it; a park is the externalize
+  step, not a failure. For a day but no time ("sometime Friday"), capture with
+  a `plannedDate` (or window); do not invent a start time.
+- **Plan-the-day pulls from the tray — planned-for-today first.** For free
+  slots or "plan my day", read `includeBacklog:true` and follow pagination.
+  Offer blocks planned for today and overdue ones first, then by `priority`,
+  importance, dependencies, and fit, with area/type + energy (demanding work →
+  a peak; admin → the dip). Propose, then use a `manage_inbox` `schedule` op.
+  Keep `backlogPlannedOn` for the direct question ("what did I plan for
+  Friday?").
 - **Surface overdue intentions.** A block whose `plannedUntil` (or
-  `plannedDate`, without a window) is before today slipped past its planned
-  window. Check whether it still matters, then offer to place it
-  today, re-plan it (`update` with a new `plannedDate`), send it back to
-  Someday (`plannedDate: null`), or `remove` it — the user's call.
-- **Review sweeps leftovers back.** When a planned block was skipped or didn't
-  finish, offer to `park` it for later instead of dropping it — the intention
-  survives without pretending it happened. (Reflection records what *did*
-  happen; parking carries forward what still needs to.) Order matters: `park`
-  refuses an event that already carries a reflect status, so park it *before*
-  marking the day, or `capture` a fresh block afterwards instead.
+  `plannedDate`, without a window) is before today slipped past its window.
+  Check that it still matters, then offer to place it today, re-plan it
+  (`update`), send it to Someday (`plannedDate: null`), or `remove` it.
+- **Review sweeps leftovers back.** Offer to `park` a skipped or unfinished
+  block; do not drop it. `park` refuses an event that has a reflect status, so
+  park it *before* you mark the day, or `capture` a fresh block after.
+
+## Projects and priority
+
+`get_schedule` `projects` lists `[{id, name, areaId (null = no area),
+archived?: true}]`. An archived project stays, so that its links resolve.
+Manage projects with `manage_categories` (references/taxonomy.md §Projects).
+
+- **Read.** Every event (`days[].events`, `find_event`, a write echo) and Inbox
+  item has `projectId` (null when unset) and `priority` (0 none, 1 low,
+  2 medium, 3 high, 4 urgent). A `series` row does not have them.
+  `loadByProject` is `[{projectId, minutes, eventCount}]` of blocking time,
+  most minutes first; `projectId: null` is the no-project bucket. A read of 2
+  or more days also has a top-level `loadByProject`, the sum of its days. In
+  that sum, a cross-midnight event counts once in `eventCount`, and its minutes
+  from each day add up.
+- **Write.** `write_events` create/update and `manage_inbox`
+  capture/capture_text/update take `projectId` (a live id) and `priority`
+  (0–4, no `null`). On create or capture, omit both for no project and 0. On
+  update, omit a field to keep it; `projectId: null` clears the project and
+  keeps the area. An empty `projectId` string is `validation`.
+- **Area follow.** When an op links a project that has an area and sends no
+  `areaId`, the row takes the area of the project. That area also replaces an
+  area that the user set by hand (events and Inbox items). An `areaId` in the
+  same op wins. Fork, shift, unlink, undo: references/taxonomy.md §Projects.
+- **Refusal.** An unknown, not owned, or archived project fails the op with
+  `not_found`: `No live project with id "<id>".` (a concurrent write gives
+  `Project not found.`). An archived link stays valid on a row that already has
+  it, and on the rows that schedule, park, a series copy, or an undo makes from
+  it. Re-read `projects`, or ask the user to restore it (`archived:false`).
+- **Task-linked rows.** A project change on a task-linked Inbox item moves the
+  task to a list of the new project, or fails with `read_only` and a reason.
+  On a placed task-linked event, a `write_events` project change that needs a
+  task move fails with `read_only`; `projectId: null` never fails. Relay the
+  reason; do not offer an upgrade (references/calendars.md).
 
 ## Workflow: schedule a block
 
@@ -468,7 +496,7 @@ Treat the tray as a first-class part of the plan, not a side list:
    `ops:[{op:"create", name, start, end}]`. Both times are local datetimes
    (`"YYYY-MM-DDTHH:MM"`) in the returned `timezone`; compute `end` from the
    duration. Omit `id` for a generated UUID, or supply a UUID. Attach
-   `areaId`/`activityTypeId`, `kind`, or `notes` as
+   `areaId`/`activityTypeId`, `projectId`, `priority`, `kind`, or `notes` as
    needed. Add an RRULE `recurrence` for a repeat; recurring creates check
    conflicts across a bounded horizon. Calendar targets follow
    references/calendars.md §Calendar targets. Set `render:true` to repaint an
@@ -496,10 +524,9 @@ Treat the tray as a first-class part of the plan, not a side list:
    availability; there is no separate free-slot tool.
 2. Place demanding work in the user's stated peak window and admin/shallow work
    in the trough.
-3. If `backlogCount > 0`, read the tray (`includeBacklog:true`) and offer to
-   fill the slot from a parked block before inventing new work — blocks
-   planned for that day first, then by importance and fit, matched to the window
-   (§Backlog).
+3. If `backlogCount > 0`, offer a parked block before new work. Offer the
+   blocks planned for the slot's day first, then use the order of
+   §Planning with backlog.
 4. Place an authorized new block with `write_events` `create`, using the
    chosen `start` and `end`. Use a `manage_inbox` `schedule` op for a parked
    block. If the user still needs to choose, offer the slot before writing.
@@ -559,10 +586,12 @@ Treat the tray as a first-class part of the plan, not a side list:
   a `clear` with the user first. The result has `breakdown` (`oneOff`,
   `recurringOccurrence`, `override`), up to 50 `items` (`date`, `name`),
   `truncated`, and a `skippedReadOnly` count when it kept `readOnly` events.
-- Create areas/types with `manage_categories` before you
+- Create areas, types, and projects with `manage_categories` before you
   reference them; un-timed blocks go through `manage_inbox` (§Backlog).
-  A category delete with live links needs `reassignTo` (id or `null`). Ask for
-  the user's choice only if missing (references/taxonomy.md §Deleting safely).
+  An area or type delete with live links needs `reassignTo` (id or `null`).
+  Ask for the user's choice only if it is missing (references/taxonomy.md
+  §Deleting safely). A project delete takes no `reassignTo` and clears the
+  links (references/taxonomy.md §Projects).
 - `find_event {query}` searches both `events` and untimed `inbox` items.
   `ambiguous` describes event ties only; resolve multiple plausible Inbox
   matches too. Write an Inbox result with `manage_inbox`. See
@@ -579,9 +608,9 @@ Treat the tray as a first-class part of the plan, not a side list:
 
 - Preserve transition time between unlike activities unless the user prefers otherwise.
 - Never schedule deep work in a known trough without flagging it.
-- Never tick a microtask off unless the user said it happened, and never send an
-  `items` edit built from memory — read the current list first, or you'll delete
-  the steps you forgot to echo.
+- Never tick a microtask off unless the user said it happened; a guessed tick
+  corrupts the record. Never send an `items` edit built from memory — read the
+  current list first, or you will delete the steps that you did not echo.
 - Never give clinical advice — no medication timing, dosing, sleep medication,
   or diagnostic claims. These are widely used lifestyle strategies, not
   treatment, and not a substitute for evaluation by a qualified clinician.
@@ -591,7 +620,7 @@ Treat the tray as a first-class part of the plan, not a side list:
 Apply references/adhd-methods.md as ACTIONS on the dial, not advice you recite.
 Start with implementation intentions and externalized time. See
 references/workflows.md for extended multi-step scenarios,
-references/taxonomy.md for how areas and activity types map to the dial,
+references/taxonomy.md for areas, activity types, and projects,
 references/calendars.md for connected-calendar sync, event kinds, and mirroring,
 references/reflection.md for reviewing how a past day actually went, and
 references/limits.md for subscription access and how to read a refusal.

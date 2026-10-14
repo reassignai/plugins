@@ -1,8 +1,9 @@
 # Extended workflows
 
 Multi-step scenarios that go beyond the single-block flows in SKILL.md. Every
-one starts with `get_schedule` to anchor `now`, the user's areas
-and activity types, `userPreferences`, and the day's load. Use `write_events` for event edits, `delete_events` for removals, and
+one starts with `get_schedule` to anchor `now`, the user's areas, activity
+types, projects, `userPreferences`, and the day's load. Use `write_events` for
+event edits, `delete_events` for removals, and
 `manage_inbox` for parked intentions (≤50 ops per call, atomic unless
 `partial:true`). Surface returned undo tokens and respect existing authorization.
 
@@ -32,13 +33,17 @@ and activity types, `userPreferences`, and the day's load. Use `write_events` fo
    process pages internally but present a small group at a time. Do not declare
    a complete triage while `nextBacklogOffset` still points to unread items.
 3. Separate actionable work, ideas for later, and work waiting on someone or
-   something. Use notes for dependencies or a waiting reason; MCP has no
-   project/dependency/status tool. A planned date can represent a follow-up
-   intention, but must not be described as an automatic reminder.
+   something. MCP has projects: get_schedule `projects`, manage_categories
+   `projects` ops, and `projectId`/`priority` on manage_inbox and write_events.
+   Filter the Inbox with `backlogProjectId`/`backlogMinPriority`. MCP has no
+   dependency or status tool: use notes for a dependency or a reason to wait.
+   A planned date can show a follow-up intention. Do not call it an
+   automatic reminder.
 4. For a project, record the desired outcome and identify its next unblocked
-   action. Keep same-sitting steps in one `checklist`; use distinct blocks
-   only for work that needs distinct time. Avoid duplicating the project and
-   all its steps as competing bookings. Reuse areas/types by their existing meaning.
+   action. Link the steps to one project with `projectId`. Keep same-sitting
+   steps in one `checklist`; use distinct blocks only for work that needs
+   distinct time. Do not book the project and all its steps again as blocks that
+   compete. Reuse areas/types/projects by their existing meaning.
 5. Offer keep, clarify, plan, or remove only as needed. Do not prune merely
    because an item is old. Stop at the requested scope; an organized next action
    can be enough without redesigning the user's whole system.
@@ -64,7 +69,9 @@ and activity types, `userPreferences`, and the day's load. Use `write_events` fo
 1. `get_schedule` with `from`+`to` spanning the past week. Keep the tool data
    out of the reply; summarize it.
 2. Summarize planned time **by area** using area/type load, and actuals from
-   recorded reflection. A planned block alone is not evidence it happened.
+   recorded reflection. The top-level `loadByProject` (a read of 2 or more
+   days) gives the planned blocking time per project; `projectId: null` is the
+   no-project bucket. A planned block alone is not evidence it happened.
    Name one win and one concrete adjustment. Where blocks
    carry microtasks, the `done` items of their `checklist` are finer evidence than the
    reflect state alone. A repeatedly half-finished block is a reason to adjust
@@ -184,18 +191,21 @@ See references/calendars.md for the full surface. The flow:
 The tray holds *un-timed*
 intentions; the write surface is `manage_inbox`, the read path is
 `get_schedule` (`backlogCount` → `includeBacklog:true`, optionally filtered by
-`backlogPlannedOn`). Search by name with `find_event {query}` and read its
-`inbox` results (context.md §Find events and Inbox items). A parked block may
-carry a planned day or window — see SKILL.md §Backlog.
+`backlogPlannedOn`, `backlogProjectId` (an id, or `"none"`), and
+`backlogMinPriority` (0–4)). Search by name with `find_event {query}` and read
+its `inbox` results (context.md §Find events and Inbox items). A parked block
+may carry a planned day or window — see SKILL.md §Backlog.
 
 1. **Capture without cramming.** The user rattles off tasks with no clear time,
    or the day's already full → `manage_inbox` `capture` ops (one batch, up to
    50) instead of forcing blocks onto the dial. Attach `durationMinutes`,
-   `kind`, and `areaId`/`activityTypeId` where known so a later placement sizes and classifies itself. A
-   day named without a time ("sometime Friday") → capture with a planned
-   day/window, not an invented start time (SKILL.md §Backlog). When the user
-   spells a parked intention out in pieces ("call the garage, get a quote, book
-   it in"), that's one block with a `checklist`, not three parked blocks — and the
+   `kind`, `areaId`/`activityTypeId`, `projectId` (a project with an area brings
+   that area when the op sends no `areaId`), and `priority` (0–4) where known
+   so a later placement sizes and classifies itself. A day named without a
+   time ("sometime Friday") → capture with a planned day/window, not an
+   invented start time (SKILL.md §Backlog). When the user spells a parked
+   intention out in pieces ("call the garage, get a quote, book it in"), that is
+   one block with a `checklist`, not three parked blocks — and the
    steps ride along when it's later placed. Capturing something the user found
    on a **page** is the one case that takes `sourceUrl` and `enrich` (SKILL.md
    §Captured from a page): give the address so they get a clickable source chip,
