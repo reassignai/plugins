@@ -20,6 +20,10 @@ Seven providers can be connected. `get_schedule`'s per-event `source` and each
 | `linear` | Linear (task app) | only issues assigned to the user, in the selected teams |
 | `ticktick` | TickTick (task app) | lists surface as calendars |
 
+A provider "project" or list (a Todoist project, a TickTick list) is not a
+Reassign project (`projectId`), but each list can feed a Reassign project. Keep
+the two meanings apart when you talk to the user.
+
 The rules below are provider-agnostic. Task apps share these behaviors:
 
 - **A task-linked event is a one-off.** Reassign does not translate a local
@@ -39,6 +43,32 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   - A recurring task: the date is provider-owned. An update of it is refused
     with `read_only` (not an access problem; do not offer an upgrade). The
     user changes the date in the task app.
+- **Priority syncs both ways** (0 none to 4 urgent) with Todoist, TickTick,
+  Linear, and Microsoft To Do. Google Tasks has no priority. A remote change
+  since the last sync wins: Reassign does not overwrite a priority that
+  changed in the task app.
+- **A list feeds a project.** Each synced task list or Linear project feeds a
+  Reassign project. A new imported item takes that project, and its area when
+  the project has one.
+- **A project change moves the task.** A project change on a task-linked
+  Inbox item moves the task in the same account. The task stays when its list
+  (or Linear project) already feeds the new project. Else it goes to the one
+  list of that project for that account. When 2 or more lists feed it, it goes
+  to the "New tasks go to" list of the project. A Linear issue goes to the one
+  open Linear project of its team that feeds the new project. Todoist,
+  TickTick, and Google Tasks move the task natively; Microsoft To Do recreates
+  it in the new list.
+  - Any other case fails with `read_only` and a reason, for example
+    `This project has no <Provider> list for this account.`,
+    `This project has 2 or more <Provider> lists. Set "New tasks go to" in project settings.`,
+    `<Provider> tasks cannot move to another project.`, or
+    `This project has no Linear project for the <team> team.`, or
+    `This project has 2 or more Linear projects for the <team> team. Unlink one.`
+  - A `write_events` project change on a placed task-linked event that needs
+    a move fails with `read_only`:
+    `A scheduled task keeps the project of its list. Change the project in the Inbox.`
+  - The server never refuses `projectId: null` (no project). This `read_only`
+    is not an access problem: relay the reason, and do not offer an upgrade.
 - **Place and remove keep the task.** Scheduling or moving a linked slot never
   changes the provider due date. Removing a linked slot returns the task to
   the Inbox with its due date unchanged.
@@ -65,12 +95,15 @@ to both: it decides whether an event *occupies time*.
 - Every read event carries `kind`: `"blocking"`, `"non_blocking"`, or
   `"reference"`. Set it with the `kind` field on a `write_events` create or
   update. An all-day calendar event always syncs as `reference`; a change of
-  its kind is refused with `read_only`.
-- Non-blocking minutes are kept out of `loadByArea`/`loadByActivityType` and the
-  free-slot math; when present they surface separately as
-  `nonBlockingLoadByArea` / `nonBlockingLoadByActivityType`. So "where did my
-  time go" still accounts for a day of mostly sleep/fasting, without those bands
-  pretending to block work.
+  its kind is refused with `read_only`. Exception: an op that also sends
+  `calendarId: null` (unlink) can change the kind, because the event is local
+  after the op. This also works on a `readOnly` all-day event.
+- `loadByArea`/`loadByActivityType`/`loadByProject` and the free-slot math
+  do not count non-blocking minutes;
+  when present they surface separately as `nonBlockingLoadByArea` /
+  `nonBlockingLoadByActivityType` (there is no `nonBlockingLoadByProject`).
+  So "where did my time go" still accounts for a day of mostly sleep/fasting,
+  without those bands pretending to block work.
 - **reference** is see-only: never move, delete, or schedule work *into* it
   unless the user explicitly asks. Treat it as information, not a commitment.
 
@@ -96,12 +129,15 @@ check each source's `status` before describing sync as active. Shape:
   quoted/labeled references and `set Area to …` clauses; no warnings does not
   certify arbitrary prose rules. Omitted with `includeLookups:false`.
 - `defaultCalendarId` (optional) — the calendar new dial events publish to
-  by default. Absent if the user has not set one, or if it is no longer
-  writable. The read does not check the source `status`. A write treats a
-  default on a source that is not `connected` as no default. This also applies
-  to the home rule of series copies (§Calendar targets).
+  by default. Absent if the user has not set one, if the calendar is not
+  writable or is gone, or if its source is not `connected`. The read and the
+  write use the same rule, so a default that the read shows is a valid write
+  target. This rule also applies to the home rule of series copies
+  (§Calendar targets).
   It is also the default Source of a new Inbox item: a task list default
-  creates each new capture as a task (SKILL.md §Inbox Source).
+  creates each new capture as a task (SKILL.md §Inbox Source). A project
+  default list ("New tasks go to") wins over `defaultCalendarId` for an item
+  with that `projectId`. get_schedule does not show a project default list.
 - `sources[]` — one per connected account: `provider`, `status`
   (`connected` is the only one that syncs; also `disconnected`, `error`,
   `pending`, `revoked`), `account` (the account name at the provider, often an
@@ -206,11 +242,12 @@ target only when the user names a calendar, and resolve its id from
 - `calendarId: null` on `update` unlinks the whole series (a bare id, no
   `scope`). It deletes the home link and every mirror copy, and keeps the dial
   block. The same op may also carry `start`, `end`, `name`, `notes`, `areaId`,
-  `activityTypeId`, and `kind`; the server applies them first, in one
-  transaction. `mirrorCalendarIds`, `mirrorStyles`, `recurrence`,
-  `recurrenceEnd`, `sourceUrl`, and `focusIntervals` with `calendarId: null`
-  are a `validation` error. On an event that is already dial-only, the server
-  ignores `calendarId: null`, and the other fields apply as a normal `update`.
+  `activityTypeId`, `projectId`, `priority`, and `kind`; the server applies
+  them first, in one transaction. `mirrorCalendarIds`, `mirrorStyles`,
+  `recurrence`, `recurrenceEnd`, `sourceUrl`, and `focusIntervals` with
+  `calendarId: null` are a `validation` error. On an event that is already
+  dial-only, the server ignores `calendarId: null`, and the other fields apply
+  as a normal `update`.
   Send `mirrorCalendarIds: []` to remove its copies.
 - When the read shows no `calendarId` and no copies, `calendarId: null` fails
   with `validation` ("nothing to unlink"). Omit it.

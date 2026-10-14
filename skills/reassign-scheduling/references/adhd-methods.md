@@ -27,8 +27,10 @@ A project needs a next action, not a complete breakdown before starting.
 - Steps for one sitting belong in the event's `checklist`; read and preserve
   existing item IDs when replacing that list.
 - Steps needing different days or contexts become separate events or parked
-  blocks. Put the shared project name in their names/notes; reuse existing
-  taxonomy instead of creating a new category for every task.
+  blocks. Link them to one existing project with `projectId` (from
+  get_schedule `projects`). Create a project with `manage_categories` only
+  when none fits. Reuse existing projects and taxonomy; do not make a new one
+  for every task.
 - Choose a first step that can begin in under five minutes. Keep only a few
   useful steps visible. Do not duplicate the same work as both checklist and
   independent scheduled events.
