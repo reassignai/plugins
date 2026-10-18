@@ -460,11 +460,14 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
   or more days also has a top-level `loadByProject`, the sum of its days. In
   that sum, a cross-midnight event counts once in `eventCount`, and its minutes
   from each day add up.
-- **App.** The event editor has no priority field; an Inbox item has one. The
-  app sets an event priority with a digit key on a selected event, or a trailing
-  `p1`–`p4` (or `!`–`!!!!`) sigil in a create line. `p1` or key 1 is urgent (4),
-  and `p4` is low (1). So map "p1" from the user to `priority: 4`. MCP does not
-  parse a sigil in a name or in `capture_text`, so always send `priority`.
+- **App.** The event editor has no priority field. The Inbox item editor has
+  one. The app sets an event priority with a digit key on a selected event. A
+  trailing sigil in a create line also sets it. Map `p1` (key 1, `!!!!`) to 4,
+  `p2` (`!!!`) to 3, `p3` (`!!`) to 2, and `p4` (`!`) to 1. Key 0 sets 0.
+  MCP does not parse a sigil in a name or in `capture_text`. When the user
+  types a sigil, remove it from the name or text, and send `priority`.
+  `capture_text` gives one `priority` to all items. For items with different
+  priorities, use one `capture` op for each item.
 - **Write.** `write_events` create/update and `manage_inbox`
   capture/capture_text/update take `projectId` (a live id) and `priority`
   (0–4, no `null`). On create or capture, omit both for no project and 0. On
