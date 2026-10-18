@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.21.0"
+  version: "1.21.1"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -460,6 +460,11 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
   or more days also has a top-level `loadByProject`, the sum of its days. In
   that sum, a cross-midnight event counts once in `eventCount`, and its minutes
   from each day add up.
+- **App.** The event editor has no priority field; an Inbox item has one. The
+  app sets an event priority with a digit key on a selected event, or a trailing
+  `p1`–`p4` (or `!`–`!!!!`) sigil in a create line. `p1` or key 1 is urgent (4),
+  and `p4` is low (1). So map "p1" from the user to `priority: 4`. MCP does not
+  parse a sigil in a name or in `capture_text`, so always send `priority`.
 - **Write.** `write_events` create/update and `manage_inbox`
   capture/capture_text/update take `projectId` (a live id) and `priority`
   (0–4, no `null`). On create or capture, omit both for no project and 0. On
