@@ -83,10 +83,12 @@ today's reflection through MCP.
   standup. A `kept` or `skipped` mark takes no actual times.
 - **Task-linked events mirror completion.** When the reflected event is linked
   to a task in a task app (Todoist, Google Tasks, Microsoft To Do, Linear,
-  TickTick), the mark drives the task's lifecycle in the *same* atomic batch
-  (covered by the same undo receipt): **`kept` completes** the task,
-  **`skipped` reopens** it.
+  TickTick, Apple Reminders), the mark drives the task's lifecycle in the *same*
+  atomic batch (covered by the same undo receipt): **`kept` completes** the
+  task, **`skipped` reopens** it.
   TickTick cannot reopen a task, so a `skipped` mark leaves it as it is.
+  Apple Reminders gets the change when the iPhone syncs, so do not say that the
+  reminder is complete yet.
   `changed` and `added` never touch the task. Task links are always one-offs,
   so this only applies to single events. Nothing extra to call — reflect as
   usual (see references/calendars.md §Providers).
@@ -99,6 +101,23 @@ today's reflection through MCP.
   block before re-asking how something went. This is independent of focus
   interval check-offs, which never write a status of their own (see SKILL.md
   §Focus intervals).
+
+### Health actual times
+
+A health source (calendars.md §Health sources) can write actual times onto a
+planned block that matches a sleep, workout, or mindful record.
+
+- The event reads as `reflect {status:"changed", actualStart, actualEnd}`. The
+  read does not show if the user or a health source wrote the times. So do not
+  say that the user reported them.
+- A user mark or a hand edit wins. A confirmed day gets no health write.
+- On a recurring series, the write forks that occurrence. A series that a
+  calendar owns gets no write.
+- These times count as a mark. `park` refuses the event, also before you mark
+  the day. A `confirm` with these times gives no "no marks" warning.
+- The times can land on today. On a past day, a `kept` or `skipped` mark replaces
+  them. A `reflect` op on today fails with `validation`. `review_day` `discard`
+  clears them, with every other mark of that day.
 
 ## Confirming / discarding the day: `review_day`
 
@@ -158,7 +177,8 @@ failures happen at the MCP gate (see references/limits.md).
    only partly ticked, `capture` its **unticked steps** as a new parked block's
    `checklist` (SKILL.md §Backlog). Use `capture`, not `park`: by this point the
    block carries a reflect status, and `park` refuses a reviewed event — so
-   parking the whole block is only an option *before* step 2. Reflection
+   parking the whole block is only an option *before* step 2, and only when a
+   health source did not write actual times. Reflection
    records what *did* happen; the capture carries the remainder forward. Don't edit the step
    template to "clean up" a past day — the finished list is the record.
 

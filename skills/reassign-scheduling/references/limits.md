@@ -15,6 +15,8 @@ access must be restored. Shorter dates, one-off events, smaller batches, and
 reconnecting do not bypass it. Other 403 responses can have different causes
 (such as a rejected origin); do not treat every 403 as a subscription failure.
 A revoked or invalid authorization instead needs authentication/reconnection.
+A new consent does not bring back a token or a code from before a revoke. The
+client needs a new sign-in flow.
 
 `write_events` `reflect` and `review_day` `confirm` require a past date in the
 user's timezone, even if today's event has ended. Today or a future day is a
@@ -28,7 +30,7 @@ A `discard` of a day with nothing recorded returns `noop:true`, empty
 |---|---|---|
 | `permission` | a plan gate or an action restriction, such as parking a recurring, sleep, reviewed, or not-owned event | relay the message; offer an upgrade only for a plan gate |
 | `scope` | the connection lacks this OAuth scope | reconnect with the needed permission |
-| `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window, or a project change that a linked task cannot follow | use the calendar or task app that owns it; for a `revoked` source, the user reconnects it in the app. Project move: relay the reason; it is not an access problem (calendars.md) |
+| `read_only` | the event or requested field is not writable here, including a recurring task's planned date/window, or a project change that a linked task cannot follow | use the calendar or task app that owns it; for a `revoked` source, the user reconnects it in the app. Relay the message: it names an unreadable calendar or an Apple source with no iPhone (the user opens the Reassign app on the iPhone). Health event: the user changes the record in the health app. Project move: relay the reason; it is not an access problem (calendars.md) |
 | `conflict` | the requested time is taken, a category name or an id is already in use, a project delete hits a task list or Linear project that feeds it, or a short busy state blocks the write | time: choose another slot. Name: reuse the id from the message, or pick another name; a project clash has no id, so find it in get_schedule `projects`. Fed project: offer archive instead. Busy state: retry once |
 | `not_found` | the referenced event, item, area, activity type, project, day, or token does not exist; a new link names an archived project; a split `linkId` or a `publishCalendarId` list does not feed the project; or a relink `linkId` is not a Linear project | re-read and resolve the target. `No live project with id "<id>".`: re-read `projects`, or ask the user to restore the project (`archived:false`, taxonomy.md §Projects) |
 | `stale` | an `undo_changes` token whose rows changed again after the write | the undo changed nothing; tell the user and do not retry the token |

@@ -164,19 +164,20 @@ their fields. Re-read the range after the split before making another edit.
 
 See references/calendars.md for the full surface. The flow:
 
-1. `get_schedule` — if `integrations` is present, a calendar or task app is
-   connected. Read `sources[].status`, `defaultCalendarId`, and each event's
+1. `get_schedule` — if `integrations` is present, a calendar, task app, or
+   health source is connected. Read `sources[].status`, `defaultCalendarId`, and each event's
    `source`/`calendarId`/`readOnly` before touching anything.
 2. Editing/creating an owned linked event (or one under the default sync
    calendar) via `write_events`, or deleting via `delete_events`,
    **propagates to the provider automatically** — no separate sync step. Surface
    the `undoToken` as usual.
 3. **Never** edit, move, or delete a `readOnly` event (a calendar the user
-   does not own — also a mirrored copy). `update` (except
+   does not own — also a mirrored copy — or a health source). `update` (except
    `calendarId: null`), `shift`, and `delete` refuse it, and `clear` skips
    it. A `checklist` op, and a `reflect` mark on a past day, are allowed.
-   Surface it as context and direct the user to the owner's calendar. Unlink
-   it with `calendarId: null` only when the user asks for a local event
+   Surface it as context and direct the user to the owner's calendar, or to the
+   health app for a health event. Unlink it with `calendarId: null` only when
+   the user asks for a local event, and never a health event
    (calendars.md §Calendar targets).
 4. To explain an imported event's classification, point at the calendar's
    `area`/`activityType`/`kind` policy and the account `aiClassify`/`aiRules`

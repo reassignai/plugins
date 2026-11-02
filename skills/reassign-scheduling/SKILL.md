@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.21.1"
+  version: "1.22.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -206,21 +206,26 @@ from a per-occurrence **done set** (the ticks of one day).
 ## Calendar sync
 
 When the user has connected a source, `get_schedule` returns an `integrations`
-block and events carry sync fields. A source is a calendar (Google Calendar,
-Outlook) or a task app (Google Tasks, Microsoft To Do, Linear, TickTick,
-Todoist), whose lists or projects surface as calendars. The essentials:
+block and events carry sync fields. A source can be a calendar (Google Calendar,
+Outlook, Apple Calendar) or a task app (Google Tasks, Microsoft To Do, Linear,
+TickTick, Todoist, Apple Reminders). It can also be a health source (Apple
+Health, Google Health). Task lists and projects surface as calendars. The
+essentials:
 
 - An event's `source` is `"reassign"` (native) or the provider: `google`,
-  `microsoft`, `google_tasks`, `microsoft_todo`, `linear`, `ticktick`, or
-  `todoist`. A linked event carries its home `calendarId` (absent = the
-  default calendar, `null` = dial only), any `mirrorCalendarIds`, and any
-  `mirrorStyles` (the copy style per copy calendar). An event with
-  `readOnly: true` is from a calendar the user does not own — **never edit,
-  move, or delete it**. `update` (except `calendarId: null`), `shift`, and
-  `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
-  mark on a past day, are allowed. `calendarId: null` on `update` removes the
-  link and keeps a local event that the user can edit. Send it only when the
-  user asks. It may carry the unlink edits (references/calendars.md).
+  `microsoft`, `apple_calendar`, `google_tasks`, `microsoft_todo`, `linear`,
+  `ticktick`, `todoist`, `apple_reminders`, `apple_health`, or `google_health`.
+  A write to an Apple source reaches Apple when the iPhone syncs. A linked
+  event carries its home `calendarId` (absent = the default calendar, `null` =
+  dial only), any `mirrorCalendarIds`, and any `mirrorStyles` (the copy style
+  per copy calendar). An event with `readOnly: true` is from a calendar the
+  user does not own, or from a health source (references/calendars.md) —
+  **never edit, move, or delete it**. `update` (except `calendarId: null`),
+  `shift`, and `delete` refuse it, and `clear` skips it. A `checklist` op, and a
+  `reflect` mark on a past day, are allowed. `calendarId: null` on `update`
+  removes the link and keeps a local event that the user can edit. Send it only
+  when the user asks, and never on a health event. It may carry the unlink edits
+  (references/calendars.md).
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
@@ -245,7 +250,8 @@ references/reflection.md for the full detail):
   matched the plan, with per-area/type breakdowns). Each marked event carries a
   `reflect` block (`status`, plus `actualStart`/`actualEnd` only on `changed`).
   `show_day` adds a one-line adherence gloss. An unreviewed day has no `review`
-  block.
+  block. A health source can also write `changed` times
+  (references/reflection.md §Health actual times).
 - **Mark.** Record how each event went with `write_events`' `reflect` op:
   `{op:"reflect", id, status}` where `status` is `kept` (happened as planned),
   `skipped` (didn't happen), `changed` (happened differently — set
@@ -444,7 +450,8 @@ Treat the tray as a first-class part of the plan, not a side list:
   (`update`), send it to Someday (`plannedDate: null`), or `remove` it.
 - **Review sweeps leftovers back.** Offer to `park` a skipped or unfinished
   block; do not drop it. `park` refuses an event that has a reflect status, so
-  park it *before* you mark the day, or `capture` a fresh block after.
+  park it *before* you mark the day, or `capture` a fresh block after. A health
+  source can write that status first; then use `capture`.
 
 ## Projects and priority
 

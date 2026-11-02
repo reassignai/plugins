@@ -212,6 +212,8 @@ lookup keeps an archived project.
   not fill the area of an item that has a project.
 - **Forks and moves.** An occurrence fork inherits the series project and
   priority; `shift` keeps them. An unlink op (`calendarId:null`) may carry both.
+  On an occurrence id or `scope:"future"`, `priority: 0` and `projectId: null`
+  clear the value on that part only.
 - **Undo.** One undo restores the project, the priority, and an area that the
   project set.
 
