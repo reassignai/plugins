@@ -98,6 +98,9 @@ when alertness affects placement or the user asks about their energy.
 - Reading the report does not enable a dial layer. `show_day` paints energy
   only when the user has enabled that layer (off by default);
   `includeEnergy:true` reads it regardless of that display setting.
+- A connected health source also moves the forecast. A painted night counts as
+  sleep. HRV and resting heart rate can give a day-level readiness offset. The
+  report names no vital and no readiness driver. Do not infer a vital from it.
 - The app can include a menstrual-cycle rhythm in its energy layer. That term
   is absent from MCP reports: cycle data stays out of AI surfaces. A difference
   from the in-app curve can be intentional. Never ask for, infer, or record

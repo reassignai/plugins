@@ -7,18 +7,22 @@ context, respect ownership, and pick the right event `kind`.
 
 ## Providers
 
-Seven providers can be connected. `get_schedule`'s per-event `source` and each
+Eleven providers can be connected. `get_schedule`'s per-event `source` and each
 `integrations.sources[].provider` carry the key:
 
 | `provider` | What it is | Notes |
 |---|---|---|
 | `google` | Google Calendar | full two-way calendar sync |
 | `microsoft` | Outlook Calendar | full two-way calendar sync |
+| `apple_calendar` | Apple Calendar | two-way sync through the iPhone (§Apple sources) |
 | `todoist` | Todoist (task app) | projects surface as calendars |
 | `google_tasks` | Google Tasks (task app) | lists surface as calendars |
 | `microsoft_todo` | Microsoft To Do (task app) | lists surface as calendars |
 | `linear` | Linear (task app) | only issues assigned to the user, in the selected teams |
 | `ticktick` | TickTick (task app) | lists surface as calendars |
+| `apple_reminders` | Apple Reminders (task app) | lists surface as calendars; sync goes through the iPhone (§Apple sources) |
+| `apple_health` | Apple Health | one-way, read only, through the iPhone (§Health sources) |
+| `google_health` | Google Health | one-way, read only (§Health sources) |
 
 A provider "project" or list (a Todoist project, a TickTick list) is not a
 Reassign project (`projectId`), but each list can feed a Reassign project. Keep
@@ -44,9 +48,9 @@ The rules below are provider-agnostic. Task apps share these behaviors:
     with `read_only` (not an access problem; do not offer an upgrade). The
     user changes the date in the task app.
 - **Priority syncs both ways** (0 none to 4 urgent) with Todoist, TickTick,
-  Linear, and Microsoft To Do. Google Tasks has no priority. A remote change
-  since the last sync wins: Reassign does not overwrite a priority that
-  changed in the task app.
+  Linear, and Microsoft To Do. Google Tasks and Apple Reminders do not sync a
+  priority. A remote change since the last sync wins: Reassign does not
+  overwrite a priority that changed in the task app.
 - **A list feeds a project.** Each synced task list or Linear project feeds a
   Reassign project. A new imported item takes that project, and its area when
   the project has one.
@@ -56,8 +60,8 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   list of that project for that account. When 2 or more lists feed it, it goes
   to the "New tasks go to" list of the project. A Linear issue goes to the one
   open Linear project of its team that feeds the new project. Todoist,
-  TickTick, and Google Tasks move the task natively; Microsoft To Do recreates
-  it in the new list.
+  TickTick, Google Tasks, and Apple Reminders move the task natively; Microsoft
+  To Do recreates it in the new list.
   - Any other case fails with `read_only` and a reason, for example
     `This project has no <Provider> list for this account.`,
     `This project has 2 or more <Provider> lists. Set "New tasks go to" in project settings.`,
@@ -80,6 +84,47 @@ The rules below are provider-agnostic. Task apps share these behaviors:
 - **Linear limits.** Reassign cannot delete a Linear issue. A team can map
   estimate points to hours. The user sets this in the app, and the Inbox
   duration then follows the estimate. `get_schedule` does not show it.
+
+## Apple sources
+
+The Reassign iPhone app syncs `apple_calendar`, `apple_reminders`, and
+`apple_health`. One iPhone syncs each provider. The source `account` is the
+device name.
+
+- **Delivery is later.** The server stores a write at once and gives it to the
+  iPhone. The change reaches Apple when the iPhone syncs. Do not tell the user
+  that it is in Apple Calendar or Reminders yet.
+- **No iPhone.** When no iPhone syncs a source, an op that names its calendar
+  as a new `calendarId` or copy fails with `read_only`. Tell the user to open
+  the Reassign app on the iPhone. The `integrations` read can still show
+  `writable: true` on that calendar. `defaultCalendarId` is absent for it.
+- **Inbox with no iPhone.** A `capture` that names that Reminders list fails
+  with `validation`. A `capture` with no `calendarId` stays in Reassign only, so
+  do not report a task.
+- **Not writable.** Birthday and subscribed calendars are never writable.
+
+## Health sources
+
+`apple_health` and `google_health` paint sleep, workouts, and mindful sessions
+as events. The three calendars are Sleep, Workouts, and Mindful.
+
+- **Read only.** A health event has `readOnly: true`, and no health calendar is
+  writable. Do not edit, move, delete, or unlink it (`calendarId: null`). A
+  `checklist` op and a past-day `reflect` mark stay allowed. To change the
+  record, the user goes to Apple Health or Google Health. MCP cannot connect a
+  health source.
+- **Kind.** The calendar's import policy sets the `kind` of a health event
+  (§Import policies). Read the `kind`. Do not assume `non_blocking` for a night.
+- **Score.** A health event that is not `reference` counts in the day adherence,
+  like any other event. An unmarked one counts as kept.
+- **Past days change.** A health record paints yesterday, today, or a day in the
+  last 14 days. A past day can therefore get new events later. Re-read it.
+- **One record, one block.** A record with a clear match on a planned block does
+  not paint a second event. The block can get actual times
+  (reflection.md §Health actual times). An unclear match paints its own event,
+  so a health event can sit next to a planned block.
+- **Stage totals.** The `notes` of a painted night can hold sleep stage totals.
+  Do not interpret them as a diagnosis.
 
 ## Event kinds (the third axis)
 
@@ -129,8 +174,8 @@ check each source's `status` before describing sync as active. Shape:
   certify arbitrary prose rules. Omitted with `includeLookups:false`.
 - `defaultCalendarId` (optional) — the calendar new dial events publish to
   by default. Absent if the user has not set one, if the calendar is not
-  writable or is gone, or if its source is not `connected`. The read and the
-  write use the same rule, so a default that the read shows is a valid write
+  writable or is gone, or if its source is not `connected`. Also absent if no
+  iPhone syncs its Apple source. The read and the write use the same rule, so a default that the read shows is a valid write
   target. This rule also applies to the home rule of series copies
   (§Calendar targets).
   It is also the default Source of a new Inbox item: a task list default
@@ -149,9 +194,15 @@ check each source's `status` before describing sync as active. Shape:
   a calendar source (not a task list) also has `copyStyle`: the default style
   of copies on it (§Copy styles). With `copyStyle: "busy"`, `busyCopyTitle`
   gives the copy title. A `null` title means "Busy". A valid `calendarId` is
-  `writable` **and** on a `connected` source. The `writable` flag does not
+  `writable` **and** on a `connected` source. An Apple source also needs an
+  iPhone (§Apple sources). The `writable` flag does not
   check the source `status`. A write to a calendar on a source that is not
   connected fails with `read_only`.
+- **An unreadable calendar.** A calendar can stay listed after the user loses
+  read access, for example when its owner removes the share. After repeated
+  read failures over 24 hours, sync stops and `writable` is `false`. An op that
+  targets it fails with `read_only`. Sync starts again when a read succeeds. The
+  read has no separate flag for this state, so relay the `read_only` message.
 
 Use the visible facts to explain where new events sync (`defaultCalendarId`)
 or why a source is not importing (`status` ≠ connected). A source entry alone
@@ -198,13 +249,14 @@ On each event in `get_schedule` / `find_event`:
   calendar's name in `integrations`. Changed recurring occurrences inherit the
   series' calendar, mirrors, and copy styles unless the occurrence has its own
   calendar.
-- `readOnly: true` — the event is from a calendar the user **does not own**.
-  **Never edit, move, or delete it** via `write_events`/`delete_events`.
-  `update` (except `calendarId: null`), `shift`, and `delete` refuse it, and
-  `clear` skips it. A `checklist` op, and a `reflect` mark on a past day, are
-  allowed. Surface it as context and direct the user to the owner's calendar.
-  For a local event that the user can edit, see `calendarId: null` in
-  §Calendar targets.
+- `readOnly: true` — the event is from a calendar the user **does not own**, or
+  from a health source. **Never edit, move, or delete it** via
+  `write_events`/`delete_events`. `update` (except `calendarId: null`), `shift`,
+  and `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
+  mark on a past day, are allowed. Surface it as context and direct the user to
+  the owner's calendar, or to the health app for a health event. For a local
+  event that the user can edit, see `calendarId: null` in §Calendar targets
+  (not for a health event).
 - `meeting {url, label}` and `location {text, url?}` — present when the
   provider gives them.
 - `warning` — a start time that a DST change skips.
@@ -221,6 +273,8 @@ There is **no separate sync tool**. When the user has a calendar connected:
   `scope:"future"` edits propagate the matching change to the provider's series.
 - On a date with two occurrences of one imported series, `seriesId@YYYY-MM-DD`
   is refused. Use the `id` of the changed occurrence from a read.
+- When a provider deletes a past one-off that has a reflect mark or a confirmed
+  day review, Reassign keeps the block on the dial. The block loses its link.
 
 So plan and edit normally — don't warn the user about "also updating the
 provider" unless it matters; do confirm before destructive edits as usual, and
@@ -250,7 +304,8 @@ target only when the user names a calendar, and resolve its id from
   Send `mirrorCalendarIds: []` to remove its copies.
 - When the read shows no `calendarId` and no copies, `calendarId: null` fails
   with `validation` ("nothing to unlink"). Omit it.
-- `calendarId: null` also works on a `readOnly` event. The owner's event gets
+- `calendarId: null` also works on a `readOnly` event. Do not send it on a
+  health event (§Health sources). The owner's event gets
   no delete and does not change. The provider deletes the copies of the event.
   The dial keeps a local event that the user can edit. It no longer gets the
   owner's changes. Send it only when the user asks for a local event. The op
@@ -262,7 +317,8 @@ target only when the user names a calendar, and resolve its id from
   disconnected now. An op that adds no copy id, no new or changed copy style,
   and no new `calendarId` needs no Pro plan.
 - Errors of a calendar target: an unknown calendar id is `not_found`. A
-  read-only, disconnected, or gone calendar is `read_only`. These are
+  read-only, disconnected, unreadable, or gone calendar is `read_only`. An
+  Apple calendar that no iPhone syncs is also `read_only`. These are
   `validation`: a task list as a copy, a repeated copy id, or the home id in
   the copies. A `mirrorStyles` key that is not a copy is also `validation`.
   Without Pro, an op that needs Pro fails with `permission`.
@@ -278,7 +334,8 @@ target only when the user names a calendar, and resolve its id from
 
   An omitted `calendarId` on `create`, or an absent home on `update`, means the
   default calendar. It counts as no home when the user has no default calendar,
-  or when the default is on a source that is not `connected`. On the error
+  or when the default is on a source that is not `connected`, or on an Apple
+  source that no iPhone syncs. On the error
   "Copies of a series need a home calendar", set a `calendarId` or remove the
   copies.
 - A `scope:"future"` edit of a dial-only series gives the new series no
@@ -297,6 +354,10 @@ details or returning to the calendar's default style.
 | `full` | the event title | the event notes | a normal event |
 | `private` | the event title | the event notes | a private event |
 | `busy` | the copy calendar's saved busy title, or "Busy" when unset | none | a private event with no reminders |
+
+Apple Calendar sync sets no private flag. A `private` copy on an Apple calendar
+shows its title and notes to anyone who can read that calendar. Use `busy` to
+hide them there.
 
 For `private` and `busy` copies, a `blocking` event shows as busy; a
 `non_blocking` or `reference` event shows as free. This free/busy rule does

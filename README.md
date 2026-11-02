@@ -36,7 +36,7 @@ plugins/                                  ← repo root = plugin root
 │           ├── context.md           ← event and Inbox search, weather, and energy
 │           ├── workflows.md
 │           ├── taxonomy.md
-│           ├── calendars.md          ← calendar and task-app sync, import policies, event kinds, mirroring
+│           ├── calendars.md          ← calendar, task-app, and health sync, import policies, event kinds, mirroring
 │           ├── reflection.md         ← reviewing a past day: marks + adherence
 │           └── limits.md             ← subscription access, refusal codes, and retries
 ├── server.json                           ← Official MCP Registry entry
