@@ -110,6 +110,10 @@ event edits, `delete_events` for removals, and
    (`"FREQ=MONTHLY;BYDAY=2TU"` — every second Tuesday). Add `recurrenceEnd`
    (`"YYYY-MM-DD"`, inclusive) for a fixed end, or omit for open-ended. If the
    start day does not fire, the result carries `firstOccurrence`.
+   The rule is one RRULE line of 1000 characters or less. `FREQ` is `DAILY`,
+   `WEEKLY`, `MONTHLY`, or `YEARLY`. Do not send `DTSTART` or `TZID`. A rule
+   with an unknown part or a bad value, a rule with no occurrence, or a rule
+   that fires two times on one day fails with `validation`.
 3. Editing a recurring event? Pick the id:
    - the `seriesId@YYYY-MM-DD` id from a read — only this occurrence,
    - that id plus `scope:"future"` — this and all later occurrences,
@@ -122,8 +126,10 @@ event edits, `delete_events` for removals, and
 An occurrence moved to another day keeps its original `seriesId@YYYY-MM-DD`
 id and `originalDate`; use its returned `start`/`end` for the actual span. An
 override still carries the series' `recurrence` and inherits its calendar and
-mirror fields unless it has its own calendar. `series[].nextOccurrence` counts
-a moved occurrence on its actual day.
+mirror fields unless it has its own calendar. An override of a `readOnly`
+series also reads `readOnly: true`. With no calendar link of its own, it shows
+the `source` of the series. `series[].nextOccurrence` counts a moved
+occurrence on its actual day.
 
 When `scope:"future"` starts at an already changed occurrence, the boundary
 occurrence receives the edit too. A new `start` or `end` replaces its override
@@ -141,8 +147,9 @@ their fields. Re-read the range after the split before making another edit.
 4. Remove anything obsolete with `delete_events` `delete` by id. Use `clear`
    (a `from`..`to` range, equal for one day) only to empty the range: it
    removes every event that is not `readOnly`, also sleep and references
-   (SKILL.md §Workflow: reshuffle / bulk edits). A returned `undoToken`
-   reverses the call.
+   (SKILL.md §Workflow: reshuffle / bulk edits). It keeps an all-day event of
+   more than one day and returns `skippedMultiDay`; `delete` its bare id to
+   remove it. A returned `undoToken` reverses the call.
 5. `show_day`; surface the `undoToken`.
 
 ## Find and edit an event or Inbox item without an id

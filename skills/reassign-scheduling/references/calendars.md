@@ -35,9 +35,12 @@ The rules below are provider-agnostic. Task apps share these behaviors:
   Reassign; a task app stores a date.
 - **Task completion.** A reflect mark on a task-linked event mirrors to the
   task's lifecycle: `kept` completes the task, `skipped` reopens it. See
-  references/reflection.md.
+  references/reflection.md. A read event has `taskDone: true` when its linked
+  task (or the task of its series) is closed. This can be true with no
+  `reflect` mark, for example after "Mark task as done" in the app.
 - **Dated tasks land in the Inbox**, not on the dial. Undated tasks are
-  imported only when the user turns that on for the list or team. The due date
+  imported only when the user turns that on for the list or team. A new Apple
+  Reminders list has it on by default. The due date
   becomes the item's `plannedDate` (a due + later deadline becomes its
   `plannedDate`…`plannedUntil` window).
 - **Title, notes, due date, and completion sync both ways**, with these
@@ -115,6 +118,13 @@ as events. The three calendars are Sleep, Workouts, and Mindful.
   health source.
 - **Kind.** The calendar's import policy sets the `kind` of a health event
   (§Import policies). Read the `kind`. Do not assume `non_blocking` for a night.
+- **Area and type.** The AI classifier does not read a health event. A new
+  health calendar gets the fixed area Self and the fixed type Recharge (or the
+  user's renamed copy). When the user removed that category, the calendar gets
+  none. The user can change both in the app.
+- **Show on dial.** The user can turn off "Show on dial" for a health
+  calendar. The day sync then paints no events from that calendar. A night
+  that is not on the dial is thus not proof that no record exists.
 - **Score.** A health event that is not `reference` counts in the day adherence,
   like any other event. An unmarked one counts as kept.
 - **Past days change.** A health record paints yesterday, today, or a day in the
@@ -142,7 +152,8 @@ to both: it decides whether an event *occupies time*.
   update. An all-day calendar event always syncs as `reference`; a change of
   its kind is refused with `read_only`. Exception: an op that also sends
   `calendarId: null` (unlink) can change the kind, because the event is local
-  after the op. This also works on a `readOnly` all-day event.
+  after the op. This also works on a `readOnly` all-day event. The exception
+  does not apply to an event that reads `allDaySpan` (§All-day events).
 - `loadByArea`/`loadByActivityType`/`loadByProject` and the free-slot math
   do not count non-blocking minutes. When present, those minutes show
   separately as `nonBlockingLoadByArea` / `nonBlockingLoadByActivityType`
@@ -150,6 +161,33 @@ to both: it decides whether an event *occupies time*.
   accounts for a day of mostly sleep/fasting, and those bands do not block work.
 - **reference** is see-only: never move, delete, or schedule work *into* it
   unless the user explicitly asks. Treat it as information, not a commitment.
+
+## All-day events
+
+An event that reads `allDaySpan` is **one event**, also when it covers more
+than one day. Other all-day events, for example a recurring series, keep the
+normal series model.
+
+- **Read.** `allDaySpan` is `{startDate, endDate, days, dayIndex}`. `endDate`
+  is inclusive. `dayIndex` is the position of the read day, from 1. Each day
+  of a read repeats the same bare `id`, and `start` / `end` are the hours of
+  that day. Use `allDaySpan.startDate` for the first day.
+- **Ids.** Use the bare id. The server refuses an occurrence id
+  `id@YYYY-MM-DD`. A change applies to all of the days. A new `start` on an
+  `update` sets the new first day, so do not send back the `start` of a later
+  day unless the user wants to move the event.
+- **Kind.** The event is always `reference`, also with no calendar link. The
+  server refuses a kind change with `read_only`. On an event with no link, a
+  kind change passes when the same op adds `recurrence` or sets timed hours.
+- **Hours.** A linked event keeps its hours. New hours fail with `validation`.
+- **Delete.** A `delete` of an imported event removes it from the dial only.
+  The result has `notice`: the event stays in the calendar. Tell the user.
+- **Repeat.** An `update` that adds `recurrence` to a linked event repeats it
+  in Reassign only. The result has `notice`: the calendar event does not
+  repeat.
+- **Clear.** `clear` leaves an event of more than one day in place. The result
+  has `skippedMultiDay` (a count) and `notice`. To remove the event, `delete`
+  its bare id.
 
 ## The `integrations` context
 

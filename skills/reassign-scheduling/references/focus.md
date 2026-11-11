@@ -24,6 +24,14 @@ events. Set the rhythm on the one block instead of separate buffer events.
   **count, not a prefix** — the user marks intervals individually, so
   `completedFocusIntervals: 2` on a 4-interval block means two are done, not
   necessarily the first two. Both are omitted on a block without them.
+- **Live session read.** An event with a live session has `focusState`:
+  `running`, `running_scheduled`, `paused`, or `paused_scheduled`. The
+  `_scheduled` values are a planned block. The other two are an ad-hoc session
+  that grows with the clock. `focusBreaks` lists the banked break spans
+  (`start` / `end`, floored to the minute). On a paused session, the last span
+  is the open pause, and its `end` is the stop that the session can reach.
+  A read has no `focusState` when no session runs, and no `focusBreaks` when
+  there is no break. MCP has no op to start, pause, or finish a session.
 - **Running a block (focus mode).** The user runs a block on the `/focus` page,
   where the dial travels under a pinned now-marker and the current block is
   named. That's where intervals get checked off, and it's what puts

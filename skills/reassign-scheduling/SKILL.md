@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.22.0"
+  version: "1.23.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -256,8 +256,8 @@ references/reflection.md for the full detail):
   `{op:"reflect", id, status}` where `status` is `kept` (happened as planned),
   `skipped` (didn't happen), `changed` (happened differently — set
   `actualStart`/`actualEnd` as local datetimes; an overnight actual ends on the
-  next day), or `added` (unplanned but happened — its
-  `actualStart`/`actualEnd` become its time). A mark on a planned event only sets its reflect status +
+  next day, and the start can be on the day before), or `added` (unplanned but
+  happened — its `actualStart`/`actualEnd` become its time). A mark on a planned event only sets its reflect status +
   actual time; you cannot rename/re-area it through a reflect op (that would game
   adherence). Marks use the same atomic batch and undo handling as other ops.
 - **Freeze / reset.** After marking, call `review_day` with
@@ -582,6 +582,10 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
   `originalDate` (output-only); they equal the two parts of its id. Changed
   occurrences keep the series' `recurrence`; see references/workflows.md for
   `scope:"future"` edits at an override.
+- A one-off all-day event with `allDaySpan` is one event, also when it covers
+  more than one day. Each day of a read shows the same bare id, and a change
+  applies to all of its days. It takes no `@date` id (references/calendars.md
+  §All-day events).
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
   it is refused. Series-level fields (`calendarId`, `mirrorCalendarIds`,
@@ -601,6 +605,8 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
   a `clear` with the user first. The result has `breakdown` (`oneOff`,
   `recurringOccurrence`, `override`), up to 50 `items` (`date`, `name`),
   `truncated`, and a `skippedReadOnly` count when it kept `readOnly` events.
+  It also keeps an all-day event of more than one day, and then returns
+  `skippedMultiDay` and `notice` (references/calendars.md §All-day events).
 - Create areas, types, and projects with `manage_categories` before you
   reference them; un-timed blocks go through `manage_inbox` (§Backlog).
   An area or type delete with live links needs `reassignTo` (id or `null`).
@@ -636,7 +642,8 @@ Apply references/adhd-methods.md as ACTIONS on the dial, not advice you recite.
 Start with implementation intentions and externalized time. See
 references/workflows.md for extended multi-step scenarios,
 references/taxonomy.md for areas, activity types, and projects,
-references/calendars.md for connected-calendar sync, event kinds, and mirroring,
+references/calendars.md for connected-calendar sync, event kinds, all-day
+events, and mirroring,
 references/reflection.md for reviewing how a past day actually went, and
 references/limits.md for subscription access and how to read a refusal.
 
