@@ -32,11 +32,11 @@ plugins/                                  ← repo root = plugin root
 │       ├── SKILL.md
 │       └── references/
 │           ├── adhd-methods.md
-│           ├── focus.md             ← focus intervals, live pauses, and saved rhythms
+│           ├── focus.md             ← focus intervals, live sessions, and saved rhythms
 │           ├── context.md           ← event and Inbox search, weather, and energy
 │           ├── workflows.md
 │           ├── taxonomy.md
-│           ├── calendars.md          ← calendar, task-app, and health sync, import policies, event kinds, mirroring
+│           ├── calendars.md          ← calendar, task-app, and health sync, import policies, event kinds, all-day events, mirroring
 │           ├── reflection.md         ← reviewing a past day: marks + adherence
 │           └── limits.md             ← subscription access, refusal codes, and retries
 ├── server.json                           ← Official MCP Registry entry

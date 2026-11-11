@@ -66,11 +66,13 @@ today's reflection through MCP.
   - **`changed`** — happened but differently. Set `actualStart` / `actualEnd`
     (local datetimes `"YYYY-MM-DDTHH:MM"`, always as a pair) to record the real
     time; omit both to log it as changed with no exact time. An actual end after
-    midnight is on the next day. Actual times equal to the plan store a bare
-    `changed`.
+    midnight is on the next day. The `actualStart` can be on the event's day
+    or the day before (for example, a night that started before midnight). An
+    earlier day fails with `validation`. Actual times equal to the plan store a
+    bare `changed`.
   - **`added`** — unplanned but it happened. Its `actualStart` / `actualEnd`
     become the event's time (an `added` row is fully editable, since it never had
-    a plan to deviate from).
+    a plan to deviate from). Its `actualStart` must be on its own day.
 - **Field-lock.** A mark on a *planned* event may set **only** its reflect status
   and actual time. Name, area, activity type, kind, and recurrence stay
   read-only through the reflect op — re-planning a past event would game its

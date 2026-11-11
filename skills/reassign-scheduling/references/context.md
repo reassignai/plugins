@@ -98,6 +98,9 @@ when alertness affects placement or the user asks about their energy.
 - Reading the report does not enable a dial layer. `show_day` paints energy
   only when the user has enabled that layer (off by default);
   `includeEnergy:true` reads it regardless of that display setting.
+- A read event can carry `energyRole` (output only). `"sleep"` marks a block
+  that the energy model reads as sleep. With no `energyRole`, the model can
+  still read a block as sleep from its name or its hours.
 - A connected health source also moves the forecast. A painted night counts as
   sleep. HRV and resting heart rate can give a day-level readiness offset. The
   report names no vital and no readiness driver. Do not infer a vital from it.
