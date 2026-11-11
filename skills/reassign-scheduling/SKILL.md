@@ -256,8 +256,8 @@ references/reflection.md for the full detail):
   `{op:"reflect", id, status}` where `status` is `kept` (happened as planned),
   `skipped` (didn't happen), `changed` (happened differently — set
   `actualStart`/`actualEnd` as local datetimes; an overnight actual ends on the
-  next day, and the start can be on the day before), or `added` (unplanned but happened — its
-  `actualStart`/`actualEnd` become its time). A mark on a planned event only sets its reflect status +
+  next day, and the start can be on the day before), or `added` (unplanned but
+  happened — its `actualStart`/`actualEnd` become its time). A mark on a planned event only sets its reflect status +
   actual time; you cannot rename/re-area it through a reflect op (that would game
   adherence). Marks use the same atomic batch and undo handling as other ops.
 - **Freeze / reset.** After marking, call `review_day` with
@@ -582,8 +582,9 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
   `originalDate` (output-only); they equal the two parts of its id. Changed
   occurrences keep the series' `recurrence`; see references/workflows.md for
   `scope:"future"` edits at an override.
-- A one-off all-day event with `allDaySpan` is one event on each of its days,
-  with the same bare id. It takes no `@date` id (references/calendars.md
+- A one-off all-day event with `allDaySpan` is one event, also when it covers
+  more than one day. Each day of a read shows the same bare id, and a change
+  applies to all of its days. It takes no `@date` id (references/calendars.md
   §All-day events).
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
