@@ -30,6 +30,29 @@ ROOT="$ROOT" node -e '
     throw new Error("plugin.json: wrong or missing Agent Plugins $schema");
   if (mcp.$schema !== `https://agent-plugins.org/schemas/${v}/mcp.schema.json`)
     throw new Error("mcp.json: wrong or missing Agent Plugins $schema");
+  // The OpenAI portal reads extensions["com.openai"]. A missing asset or a text
+  // over its limit shows only at the upload, so check the block here.
+  const oa = plugin.extensions?.["com.openai"];
+  if (oa) {
+    const { existsSync } = require("fs");
+    const ui = oa.interface ?? {}, cases = oa.review?.test_cases ?? {};
+    const max = (what, text, n) => {
+      if (typeof text !== "string" || !text || text.length > n)
+        throw new Error(`plugin.json com.openai: ${what} must be 1 to ${n} characters`);
+    };
+    max("displayName", ui.displayName, 30); max("shortDescription", ui.shortDescription, 30);
+    max("longDescription", ui.longDescription, 4000); max("developerName", ui.developerName, 80);
+    const prompts = [].concat(ui.defaultPrompt ?? []);
+    if (prompts.length > 3) throw new Error("plugin.json com.openai: at most 3 defaultPrompt entries");
+    prompts.forEach((t) => max("defaultPrompt", t, 128));
+    if ((ui.capabilities ?? []).length > 20) throw new Error("plugin.json com.openai: at most 20 capabilities");
+    (ui.capabilities ?? []).forEach((t) => max("capability", t, 120));
+    for (const key of ["logo", "composerIcon", "logoDark", "composerIconDark"])
+      if (ui[key] && !(ui[key].startsWith("./") && existsSync(join(root, ui[key]))))
+        throw new Error(`plugin.json com.openai: ${key} "${ui[key]}" must be a ./ path to a file in the repo`);
+    if ((cases.positive ?? []).length !== 5 || (cases.negative ?? []).length !== 3)
+      throw new Error("plugin.json com.openai: the MCP review needs exactly 5 positive and 3 negative test cases");
+  }
   // The two MCP configs describe the SAME endpoint in two vocabularies: the
   // spec says stdio | streamable-http | sse, Claude Code says stdio | http | sse.
   // So they are NOT copies of each other — a copy-paste between them is a silent
