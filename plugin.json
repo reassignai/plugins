@@ -7,5 +7,103 @@
   "homepage": "https://reassign.ai",
   "repository": "https://github.com/reassignai/plugins",
   "license": "Apache-2.0",
-  "keywords": ["calendar", "scheduling", "time-tracking", "productivity", "adhd", "mcp"]
+  "keywords": ["calendar", "scheduling", "time-tracking", "productivity", "adhd", "mcp"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reassign",
+        "shortDescription": "24-hour day planner",
+        "longDescription": "Reassign is a day planner that shows your day as a circular 24-hour dial.\n\nWith this plugin, the assistant reads your schedule and your free time, and it creates, moves and deletes events for you. It manages your Inbox of items that have no time yet, and it records how a day went against the plan. It can show a day as an interactive dial in the conversation. On the dial, you drag an event to move it or to change its length.\n\nIf you connected a calendar to Reassign, the changes also go to that calendar. You can undo most changes.\n\nYou need a Reassign account. Reassign gives general planning methods. It does not give medical advice.",
+        "developerName": "Pogled Naprej d.o.o.",
+        "category": "Productivity",
+        "capabilities": [
+          "Read your schedule and your free time",
+          "Create, move and delete events",
+          "Show a day as an interactive 24-hour dial",
+          "Manage the Inbox of items with no time",
+          "Record how a day went against the plan",
+          "Undo recent changes"
+        ],
+        "websiteURL": "https://reassign.ai",
+        "privacyPolicyURL": "https://reassign.ai/privacy",
+        "termsOfServiceURL": "https://reassign.ai/terms",
+        "defaultPrompt": [
+          "Show today on the dial",
+          "Find 90 minutes of focus time tomorrow morning and block it",
+          "Where did my week go? Show the breakdown by area"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Show a day as the interactive dial",
+              "prompt": "Show today on the dial.",
+              "tools_triggered": [
+                "show_day"
+              ],
+              "expected_behavior": "The dial of today shows in the conversation with the events of the test account."
+            },
+            {
+              "description": "Read a week as text",
+              "prompt": "What is on my schedule this week?",
+              "tools_triggered": [
+                "get_schedule"
+              ],
+              "expected_behavior": "A text list of the events of the week, by day, with the free time."
+            },
+            {
+              "description": "Book a new event in a free slot",
+              "prompt": "Find 90 minutes of focus time tomorrow morning and block it.",
+              "tools_triggered": [
+                "get_schedule",
+                "write_events"
+              ],
+              "expected_behavior": "One new 90-minute event in a free slot of tomorrow morning. The answer gives its time."
+            },
+            {
+              "description": "Find an event by name and move it",
+              "prompt": "Move my \"Team sync\" to 15:00.",
+              "tools_triggered": [
+                "find_event",
+                "write_events"
+              ],
+              "expected_behavior": "The event \"Team sync\" starts at 15:00 and keeps its length."
+            },
+            {
+              "description": "Delete an event, then undo the delete",
+              "prompt": "Delete my \"Team sync\" today, then undo that.",
+              "tools_triggered": [
+                "find_event",
+                "delete_events",
+                "undo_changes"
+              ],
+              "expected_behavior": "The event goes away, then comes back with the same time."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A request with no relation to the schedule. The plugin must not run a tool.",
+              "prompt": "Write a short poem about autumn."
+            },
+            {
+              "description": "A medical question. Reassign gives no advice on medication, so the plugin must not run a tool.",
+              "prompt": "What dose of melatonin must I take, and at what time?"
+            },
+            {
+              "description": "Reassign cannot send email. The assistant must say so and must not write to the schedule.",
+              "prompt": "Send an email to my team that the meeting moved."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "First release."
+      }
+    }
+  }
 }
