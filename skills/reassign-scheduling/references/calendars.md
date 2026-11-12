@@ -322,7 +322,7 @@ surface the `undoToken`.
 
 A created or edited event already follows the user's default calendar. Set a
 target only when the user names a calendar, and resolve its id from
-`integrations.sources[].calendars[]` first. A calendar id needs Reassign Pro
+`integrations.sources[].calendars[]` first. A calendar id needs a plan with calendar sync
 (the trial includes it) and is whole-series only.
 
 - `calendarId` on `create`: omit it for the default calendar; `null` keeps the
@@ -353,13 +353,13 @@ target only when the user names a calendar, and resolve its id from
   adds: each must be a connected, writable calendar that is not a task list.
   An id already on the event may stay, also when its calendar is read-only or
   disconnected now. An op that adds no copy id, no new or changed copy style,
-  and no new `calendarId` needs no Pro plan.
+  and no new `calendarId` needs no such plan.
 - Errors of a calendar target: an unknown calendar id is `not_found`. A
   read-only, disconnected, unreadable, or gone calendar is `read_only`. An
   Apple calendar that no iPhone syncs is also `read_only`. These are
   `validation`: a task list as a copy, a repeated copy id, or the home id in
   the copies. A `mirrorStyles` key that is not a copy is also `validation`.
-  Without Pro, an op that needs Pro fails with `permission`.
+  Without calendar sync in the plan, an op that needs it fails with `permission`.
 - Copies of a series need a home calendar. These ops fail with `validation`:
   - a `create` with `recurrence`, `calendarId: null`, and a nonempty
     `mirrorCalendarIds`;
@@ -417,7 +417,7 @@ Do not infer "Busy" from an omitted `busyCopyTitle`.
   `full`), exposed as `copyStyle` in `integrations` for writable calendars.
   Removing an entry restores that default; to show full details on a calendar
   whose default is `busy` or `private`, set that copy's entry to `full` explicitly.
-- A new or changed style needs Reassign Pro. A removed style needs no Pro plan.
+- A new or changed style needs a plan with calendar sync. A removed style needs no such plan.
 - A style changes only the copy. The home event keeps all its details.
 
 ## Mirroring / moving between calendars
