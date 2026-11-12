@@ -38,6 +38,7 @@ plugins/                                  ← repo root = plugin root
 │           ├── taxonomy.md
 │           ├── calendars.md          ← calendar, task-app, and health sync, import policies, event kinds, all-day events, mirroring
 │           ├── reflection.md         ← reviewing a past day: marks + adherence
+│           ├── moments.md            ← trackers: read entries and log one
 │           └── limits.md             ← subscription access, refusal codes, and retries
 ├── server.json                           ← Official MCP Registry entry
 ├── package.json                          ← npm client shim

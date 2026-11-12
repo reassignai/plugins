@@ -6,11 +6,12 @@ description: >-
   actions, microtasks, recurring routines, calendar sync, and reflection. Help
   with overwhelm, task initiation, interruptions, and ADHD-friendly time
   management through concrete scheduling changes. Use weather and energy
-  context when relevant to a plan. Read get_schedule before proposing or
+  context when relevant to a plan. Read and log the user's trackers (moments),
+  for example "when did I last log X". Read get_schedule before proposing or
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.24.1"
+  version: "1.25.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -456,6 +457,25 @@ Treat the tray as a first-class part of the plan, not a side list:
   park it *before* you mark the day, or `capture` a fresh block after. A health
   source can write that status first; then use `capture`.
 
+## Moments (trackers)
+
+A moment is one entry in a tracker of the user: a thing the user counts or
+rates. `get_moments` reads the trackers and their entries. `log_moment` adds
+one entry. See [references/moments.md](references/moments.md) for the shapes.
+
+- `get_moments` returns its own `now` and `timezone`; no `get_schedule` call is
+  necessary first. `from` + `to` (inclusive dates) set the range; with neither,
+  the range is today.
+- For "when did I last log X", call `get_moments` with no range and read
+  `lastEntry` of the tracker matched by name. No `lastEntry` means the user
+  never logged it.
+- If no tracker matches or several match, ask the user. Never invent a tracker.
+- Before `log_moment`, resolve `trackerId` from `get_moments`.
+- Log only what the user asked to log, at the time the user gave (default now).
+- A log has no `undoToken`. The user removes a wrong entry in the app. MCP
+  cannot change or delete an entry, or create a tracker.
+- Do not interpret tracker data as medical information (§What not to do).
+
 ## Projects and priority
 
 `get_schedule` `projects` lists `[{id, name, areaId (null = no area),
@@ -647,7 +667,8 @@ references/workflows.md for extended multi-step scenarios,
 references/taxonomy.md for areas, activity types, and projects,
 references/calendars.md for connected-calendar sync, event kinds, all-day
 events, and mirroring,
-references/reflection.md for reviewing how a past day actually went, and
+references/reflection.md for reviewing how a past day actually went,
+references/moments.md for trackers, and
 references/limits.md for subscription access and how to read a refusal.
 
 ## Feedback
