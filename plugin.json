@@ -41,46 +41,32 @@
             {
               "description": "Show a day as the interactive dial",
               "prompt": "Show today on the dial.",
-              "tools_triggered": [
-                "show_day"
-              ],
+              "tools_triggered": ["show_day"],
               "expected_behavior": "The dial of today shows in the conversation with the events of the test account."
             },
             {
               "description": "Read a week as text",
               "prompt": "What is on my schedule this week?",
-              "tools_triggered": [
-                "get_schedule"
-              ],
+              "tools_triggered": ["get_schedule"],
               "expected_behavior": "A text list of the events of the week, by day, with the free time."
             },
             {
               "description": "Book a new event in a free slot",
               "prompt": "Find 90 minutes of focus time tomorrow morning and block it.",
-              "tools_triggered": [
-                "get_schedule",
-                "write_events"
-              ],
+              "tools_triggered": ["get_schedule", "write_events"],
               "expected_behavior": "One new 90-minute event in a free slot of tomorrow morning. The answer gives its time."
             },
             {
-              "description": "Find an event by name and move it",
-              "prompt": "Move my \"Team sync\" to 15:00.",
-              "tools_triggered": [
-                "find_event",
-                "write_events"
-              ],
-              "expected_behavior": "The event \"Team sync\" starts at 15:00 and keeps its length."
+              "description": "Find an event by name and move it. The test account has a \"Team sync\" on each day.",
+              "prompt": "Move today's \"Team sync\" to 15:00.",
+              "tools_triggered": ["find_event", "write_events"],
+              "expected_behavior": "The \"Team sync\" of today starts at 15:00 and keeps its length. Other days do not change."
             },
             {
               "description": "Delete an event, then undo the delete",
-              "prompt": "Delete my \"Team sync\" today, then undo that.",
-              "tools_triggered": [
-                "find_event",
-                "delete_events",
-                "undo_changes"
-              ],
-              "expected_behavior": "The event goes away, then comes back with the same time."
+              "prompt": "Delete today's \"Team sync\", then undo that.",
+              "tools_triggered": ["find_event", "delete_events", "undo_changes"],
+              "expected_behavior": "The \"Team sync\" of today goes away, then comes back with the same time."
             }
           ],
           "negative": [
