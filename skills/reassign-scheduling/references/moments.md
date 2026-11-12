@@ -25,6 +25,12 @@ need a `get_schedule` call first.
   never logged the tracker. Read absence as "never logged", not as an error.
 - **`entries[]`** is `{id, trackerId, time, value, note?}` for the range, oldest
   first. An empty list means no entry in the range.
+- A `rating` tracker always has `ratingMin` and `ratingMax`.
+- `trackers` holds the trackers that the user can log against. An entry of an
+  archived tracker stays in `entries`, so its `trackerId` can be absent from
+  `trackers`. Report such an entry as "an archived tracker"; do not guess a name.
+- A `trackerId` that is not in `trackers` gives `not_found`. Read `get_moments`
+  with no `trackerId` and try again with an id from that list.
 
 ### Answer a question
 
