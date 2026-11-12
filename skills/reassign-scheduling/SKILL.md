@@ -74,11 +74,9 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   changed again later; the undo changes nothing (references/limits.md).
 - Render with `show_day` when the user wants to *see* the plan —
   it draws the interactive 24-hour dial inline.
-  Some hosts also offer two tools from a dial that is already open:
-  `update_open_dial` shows another `date`, selects an `eventId`, or, with no
-  input, reloads the shown day after a write; `read_open_dial` reads the shown
-  day, the 12h/24h mode and the selection. They write no data. If the host
-  does not list them, call `show_day` again.
+  If the host lists them, `update_open_dial` changes an open dial (another
+  `date`; an `eventId`, which opens its editor; no input reloads the day) and
+  `read_open_dial` reads it. Neither writes data. Else call `show_day` again.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
   connected, the `integrations` context and per-event `source`/`readOnly` flags
   (see references/calendars.md). Never edit, move, or delete a `readOnly`
