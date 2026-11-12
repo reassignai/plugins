@@ -10,7 +10,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.23.0"
+  version: "1.24.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -74,6 +74,9 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
   changed again later; the undo changes nothing (references/limits.md).
 - Render with `show_day` when the user wants to *see* the plan —
   it draws the interactive 24-hour dial inline.
+  If the host lists them, `update_open_dial` changes an open dial (another
+  `date`; an `eventId`, which opens its editor; no input reloads the day) and
+  `read_open_dial` reads it. Neither writes data. Else call `show_day` again.
 - Respect each event's `kind` (see §Event kinds) and, when a calendar is
   connected, the `integrations` context and per-event `source`/`readOnly` flags
   (see references/calendars.md). Never edit, move, or delete a `readOnly`
