@@ -353,7 +353,7 @@ target only when the user names a calendar, and resolve its id from
   adds: each must be a connected, writable calendar that is not a task list.
   An id already on the event may stay, also when its calendar is read-only or
   disconnected now. An op that adds no copy id, no new or changed copy style,
-  and no new `calendarId` needs no such plan.
+  and no new `calendarId` needs no plan with calendar sync.
 - Errors of a calendar target: an unknown calendar id is `not_found`. A
   read-only, disconnected, unreadable, or gone calendar is `read_only`. An
   Apple calendar that no iPhone syncs is also `read_only`. These are
