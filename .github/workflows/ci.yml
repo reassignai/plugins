@@ -25,6 +25,11 @@ jobs:
       - name: Validate plugin
         run: bash scripts/build.sh
 
+      - name: Check claude/skills is a current copy of skills/
+        run: |
+          git status --porcelain -- claude
+          test -z "$(git status --porcelain -- claude)" || { echo "::error::claude/ is not a current copy of skills/. Run bash scripts/build.sh and commit claude/."; exit 1; }
+
       - name: Check npm shim
         run: |
           node --check npm/reassign-mcp.js

@@ -36,9 +36,10 @@ const TRAINS = {
     what: "skill + plugin manifests",
     files: [
       ["plugin.json", JSON_VERSION],
-      [".claude-plugin/plugin.json", JSON_VERSION],
+      ["claude/.claude-plugin/plugin.json", JSON_VERSION],
       [".claude-plugin/marketplace.json", JSON_VERSION],
       ["skills/reassign-scheduling/SKILL.md", YAML_VERSION],
+      ["claude/skills/reassign-scheduling/SKILL.md", YAML_VERSION],
     ],
   },
   package: {

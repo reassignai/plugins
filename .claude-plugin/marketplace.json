@@ -6,6 +6,6 @@
     "version": "1.25.0"
   },
   "plugins": [
-    { "name": "reassign", "source": "./", "description": "Scheduling skill + Reassign MCP connector." }
+    { "name": "reassign", "source": "./claude", "description": "Scheduling skill + Reassign MCP connector." }
   ]
 }
