@@ -20,7 +20,7 @@ forms, all backed by one canonical skill and the Reassign MCP.
 ## What's inside
 
 ```
-plugins/                                  ← repo root = plugin root
+plugins/                                  ← repo root = Agent Plugins root; claude/ = Claude plugin
 ├── plugin.json                           ← Agent Plugins 1.0.0 manifest
 ├── mcp.json                              ← Agent Plugins MCP config (streamable-http)
 ├── .claude-plugin/
@@ -55,14 +55,15 @@ plugins/                                  ← repo root = plugin root
 └── LICENSE
 ```
 
-The `skills/reassign-scheduling/` directory is the single source of truth: every
-package form consumes it in place, with no copying.
+The `skills/reassign-scheduling/` directory is the single source of truth. The
+Claude plugin reads a copy in `claude/skills/`: `scripts/build.sh` makes it, and
+CI fails if the copy is not committed. Never edit `claude/skills/` by hand.
 
 ### Two manifests, on purpose
 
 The root `plugin.json`/`mcp.json` pair is [Agent Plugins
-1.0.0](https://agent-plugins.org/); `.claude-plugin/plugin.json` + `.mcp.json` is
-the Claude Code format. Clients auto-detect by manifest path and read exactly
+1.0.0](https://agent-plugins.org/); `claude/.claude-plugin/plugin.json` + `claude/.mcp.json`
+is the Claude Code format. Clients auto-detect by manifest path and read exactly
 one pair, so both ship side by side. They are **not** copies of each other — the
 same endpoint is `"type": "streamable-http"` under the spec and `"type": "http"`
 for Claude Code, so `scripts/build.sh` checks each file's transport vocabulary
@@ -75,7 +76,7 @@ Two independent trains, both checked by `scripts/build.sh`:
 
 | Train | Files | What it tracks |
 |---|---|---|
-| `plugin` | `plugin.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `SKILL.md` | the skill and its manifests |
+| `plugin` | `plugin.json`, `claude/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `SKILL.md` and its copy in `claude/skills/` | the skill and its manifests |
 | `package` | `package.json`, `server.json` | the npm shim + registry entry, released on a `v*` tag |
 
 ```bash

@@ -9,8 +9,8 @@ head -1 "$SKILL" | grep -q '^---$' || { echo "SKILL.md missing frontmatter"; exi
 lines=$(wc -l < "$SKILL"); [ "$lines" -le 600 ] || echo "  warn: SKILL.md is $lines lines (>600 target)"
 
 # Both manifest pairs ship, and a client reads exactly one of them: the Agent
-# Plugins root pair (VS Code, Cursor, Copilot, Codex, Kiro) or .claude-plugin/
-# + .mcp.json (Claude Code). A malformed one is invisible until the client that
+# Plugins root pair (VS Code, Cursor, Copilot, Codex, Kiro) or claude/.claude-plugin/
+# + claude/.mcp.json (Claude Code). A malformed one is invisible until the client that
 # reads it fails, so parse every one here rather than trusting the diff.
 echo "→ Validating plugin manifests"
 for manifest in plugin.json mcp.json claude/.mcp.json claude/.claude-plugin/plugin.json .claude-plugin/marketplace.json server.json; do
@@ -53,8 +53,8 @@ ROOT="$ROOT" node -e '
     if ((cases.positive ?? []).length !== 5 || (cases.negative ?? []).length !== 3)
       throw new Error("plugin.json com.openai: the MCP review needs exactly 5 positive and 3 negative test cases");
     for (const c of [...(cases.positive ?? []), ...(cases.negative ?? [])])
-      if ("tools_triggered" in c && typeof c.tools_triggered !== "string")
-        throw new Error("plugin.json com.openai: tools_triggered must be a string, not a list");
+      if ("tools_triggered" in c && !/^[a-z_]+(, [a-z_]+)*$/.test(c.tools_triggered ?? ""))
+        throw new Error("plugin.json com.openai: tools_triggered must be one string of tool names, for example \"get_schedule, write_events\"");
   }
   // The two MCP configs describe the SAME endpoint in two vocabularies: the
   // spec says stdio | streamable-http | sse, Claude Code says stdio | http | sse.
