@@ -86,6 +86,11 @@ test ! -e "$ROOT/bin" || { echo "top-level bin/ blocks Cowork and Claude apps; m
 
 # The Claude directory takes only a clean plugin folder from an unverified
 # organization, so claude/ holds a copy of skills/. skills/ is the source.
+# The Claude icon is a copy of the OpenAI logo, so a new logo reaches both listings.
+icon=$(node -p 'require(process.argv[1]).icon ?? ""' "$ROOT/claude/.claude-plugin/plugin.json")
+test -n "$icon" || { echo "claude/.claude-plugin/plugin.json: missing icon"; exit 1; }
+cmp -s "$ROOT/claude/$icon" "$ROOT/assets/logo.png" || { echo "claude/$icon must exist and match assets/logo.png"; exit 1; }
+
 echo "→ Syncing claude/skills from skills/"
 rm -rf "$ROOT/claude/skills" && cp -R "$ROOT/skills" "$ROOT/claude/skills"
 
