@@ -52,6 +52,9 @@ ROOT="$ROOT" node -e '
         throw new Error(`plugin.json com.openai: ${key} "${ui[key]}" must be a ./ path to a file in the repo`);
     if ((cases.positive ?? []).length !== 5 || (cases.negative ?? []).length !== 3)
       throw new Error("plugin.json com.openai: the MCP review needs exactly 5 positive and 3 negative test cases");
+    for (const c of [...(cases.positive ?? []), ...(cases.negative ?? [])])
+      if ("tools_triggered" in c && typeof c.tools_triggered !== "string")
+        throw new Error("plugin.json com.openai: tools_triggered must be a string, not a list");
   }
   // The two MCP configs describe the SAME endpoint in two vocabularies: the
   // spec says stdio | streamable-http | sse, Claude Code says stdio | http | sse.
