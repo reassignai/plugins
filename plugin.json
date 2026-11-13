@@ -28,6 +28,7 @@
         "websiteURL": "https://reassign.ai",
         "privacyPolicyURL": "https://reassign.ai/privacy",
         "termsOfServiceURL": "https://reassign.ai/terms",
+        "supportURL": "https://reassign.ai/support",
         "defaultPrompt": [
           "Show today on the dial",
           "Find 90 minutes of focus time tomorrow morning and block it",
@@ -85,6 +86,7 @@
             }
           ]
         },
+        "demo_recording_url": "https://youtu.be/AwJXLInlYO0",
         "commerce": false,
         "commerce_description": "This plugin does not sell products or process payments."
       },
