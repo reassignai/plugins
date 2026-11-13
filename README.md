@@ -24,11 +24,13 @@ plugins/                                  ← repo root = plugin root
 ├── plugin.json                           ← Agent Plugins 1.0.0 manifest
 ├── mcp.json                              ← Agent Plugins MCP config (streamable-http)
 ├── .claude-plugin/
-│   ├── plugin.json                       ← Claude Code manifest
-│   └── marketplace.json
-├── .mcp.json                             ← Claude Code MCP config (type "http")
+│   └── marketplace.json                  ← lists the plugin in claude/
+├── claude/                               ← the Claude plugin folder (directory plugin path)
+│   ├── .claude-plugin/plugin.json        ← Claude Code manifest
+│   ├── .mcp.json                         ← Claude Code MCP config (type "http")
+│   └── skills/                           ← copy of skills/, made by scripts/build.sh
 ├── skills/
-│   └── reassign-scheduling/              ← canonical skill (every form, zero copy)
+│   └── reassign-scheduling/              ← canonical skill (claude/skills is its copy)
 │       ├── SKILL.md
 │       └── references/
 │           ├── adhd-methods.md

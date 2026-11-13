@@ -1,0 +1,300 @@
+# Extended workflows
+
+Multi-step scenarios that go beyond the single-block flows in SKILL.md. Every
+one starts with `get_schedule` to anchor `now`, the user's areas, activity
+types, projects, `userPreferences`, and the day's load. Use `write_events` for
+event edits, `delete_events` for removals, and
+`manage_inbox` for parked intentions (≤50 ops per call, atomic unless
+`partial:true`). Surface returned undo tokens and respect existing authorization.
+
+## A manageable day plan
+
+1. Read today's schedule and the Inbox if relevant, following pagination for a
+   complete sweep. Keep the tool data out of the reply unless it helps a decision.
+2. Protect fixed commitments and essential personal time. Use known priorities;
+   if unclear, ask one question: “What would make today feel handled?” Avoid
+   requiring the user to rank the entire Inbox.
+3. Choose one essential outcome and a small optional list that fits remaining
+   capacity. A planned date is not a hard deadline; verify consequences before
+   promoting every overdue item. Keep blocked work untimed and name what it needs.
+4. Present **Now / Next / Later**: one concrete starting action, the next
+   commitment, and work safely left in the Inbox. Explain any consequential
+   tradeoff. Execute within existing authorization; otherwise get the user's
+   choice before moving commitments or placing proposed work.
+5. Reserve only the work that fits, with transitions and room for interruptions.
+   End with the next start/action and returned undo tokens. Offer the dial if
+   visual orientation would help.
+
+## Inbox triage and project organization
+
+1. Accept a brain dump as-is. Capture without demanding categories or invented
+   dates. Keep the user's wording unless asked to organize or clarify it.
+2. Read existing items before merging or replacing them. For a large Inbox,
+   process pages internally but present a small group at a time. Do not declare
+   a complete triage while `nextBacklogOffset` still points to unread items.
+3. Separate actionable work, ideas for later, and work waiting on someone or
+   something. MCP has projects: get_schedule `projects`, manage_categories
+   `projects` ops, and `projectId`/`priority` on manage_inbox and write_events.
+   Filter the Inbox with `backlogProjectId`/`backlogMinPriority`. MCP has no
+   dependency or status tool: use notes for a dependency or a reason to wait.
+   A planned date can show a follow-up intention. Do not call it an
+   automatic reminder.
+4. For a project, record the desired outcome and identify its next unblocked
+   action. Link the steps to one project with `projectId`. Keep same-sitting
+   steps in one `checklist`; use distinct blocks only for work that needs
+   distinct time. Do not book the project and all its steps again as blocks that
+   compete. Reuse areas/types/projects by their existing meaning.
+5. Offer keep, clarify, plan, or remove only as needed. Do not prune merely
+   because an item is old. Stop at the requested scope; an organized next action
+   can be enough without redesigning the user's whole system.
+
+## Restart after an interruption or an overrun
+
+1. Re-read the current day: the live focus block may have changed its end.
+   Orient with the current time and the next fixed commitment, without blame.
+2. Preserve what the user says is done. Do not mark a missed block skipped or
+   clear the day merely because its planned time passed.
+3. Offer one small restart and, if needed, one alternative. Protect the next
+   fixed commitment; shrink the remaining scope or park it instead of pushing
+   every later event into the evening. Confirm a tradeoff not already authorized.
+4. For unfinished work, preserve the next action. Park eligible unreviewed
+   one-offs, or capture only the remainder of partly completed/reviewed work.
+   Keep existing completion history; avoid duplicate captures on retries.
+5. Apply the chosen changes, surface undo, and finish with what to do now.
+   A reset is complete when the next step is usable, not when every open item
+   has a new date.
+
+## Weekly review
+
+1. `get_schedule` with `from`+`to` spanning the past week. Keep the tool data
+   out of the reply; summarize it.
+2. Summarize planned time **by area** using area/type load, and actuals from
+   recorded reflection. The top-level `loadByProject` (a read of 2 or more
+   days) gives the planned blocking time per project; `projectId: null` is the
+   no-project bucket. A planned block alone is not evidence it happened.
+   Name one win and one concrete adjustment. Where blocks
+   carry microtasks, the `done` items of their `checklist` are finer evidence than the
+   reflect state alone. A repeatedly half-finished block is a reason to adjust
+   the plan, not evidence of poor discipline. Consider interruptions, unclear scope, or
+   a dependency before suggesting a smaller next step or a different duration.
+3. Turn the adjustment into an edit now: e.g. move a recurring deep-work block
+   out of a trough (write_events `update` with a new `start`), or protect a slipping Q2
+   block as recurring (see adhd-methods.md §eisenhower--q2-protection).
+4. Schedule next week's review as a recurring anchor if one doesn't exist
+   (`recurrence: "FREQ=WEEKLY"` repeats on the weekday of `start`) if the user
+   wants that routine.
+
+## Multi-day project chunking
+
+1. `get_schedule` across the project's date range to see real free slots.
+2. Decompose the project into next-actions (adhd-methods.md §chunking) — each a
+   concrete event, the first small enough to start in under five minutes.
+3. Place chunks into peak windows across the days in **one batch**: a single
+   `write_events` call with several `create` ops. Atomic by default, so either
+   the whole plan lands or nothing does — fix any rejected op and resend rather
+   than leaving a half-placed project. Park work that does not fit available
+   capacity with a planned day/window instead of cramming it into the dial.
+4. Allow transitions and uncertainty (adhd-methods.md §Transition buffers).
+   Label estimated durations; preserve explicit user constraints.
+5. `show_day` on the first project day so the user can see the plan land;
+   surface the `undoToken`.
+
+## Recurring-block setup
+
+1. `get_schedule` to confirm the slot is genuinely free on the cadence you want.
+2. Create the block with `write_events` `create` plus `recurrence` as an RRULE
+   string. There are no presets. Examples: every weekday
+   (`"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"`), specific weekdays
+   (`"FREQ=WEEKLY;BYDAY=MO,WE,FR"`), every two weeks
+   (`"FREQ=WEEKLY;INTERVAL=2"`), or the nth weekday of a month
+   (`"FREQ=MONTHLY;BYDAY=2TU"` — every second Tuesday). Add `recurrenceEnd`
+   (`"YYYY-MM-DD"`, inclusive) for a fixed end, or omit for open-ended. If the
+   start day does not fire, the result carries `firstOccurrence`.
+   The rule is one RRULE line of 1000 characters or less. `FREQ` is `DAILY`,
+   `WEEKLY`, `MONTHLY`, or `YEARLY`. Do not send `DTSTART` or `TZID`. A rule
+   with an unknown part or a bad value, a rule with no occurrence, or a rule
+   that fires two times on one day fails with `validation`.
+3. Editing a recurring event? Pick the id:
+   - the `seriesId@YYYY-MM-DD` id from a read — only this occurrence,
+   - that id plus `scope:"future"` — this and all later occurrences,
+   - the bare series id — the entire series.
+   Be explicit about the choice when moving or updating, so the user isn't
+   surprised that "just today" rippled across the series.
+4. To stop a series repeating, `update` the bare series id with
+   `recurrence: null`.
+
+An occurrence moved to another day keeps its original `seriesId@YYYY-MM-DD`
+id and `originalDate`; use its returned `start`/`end` for the actual span. An
+override still carries the series' `recurrence` and inherits its calendar and
+mirror fields unless it has its own calendar. An override of a `readOnly`
+series also reads `readOnly: true`. With no calendar link of its own, it shows
+the `source` of the series. `series[].nextOccurrence` counts a moved
+occurrence on its actual day.
+
+When `scope:"future"` starts at an already changed occurrence, the boundary
+occurrence receives the edit too. A new `start` or `end` replaces its override
+with the new series time. With other edits, it keeps its own time and takes the
+sent fields; the result echoes that occurrence. Later moved overrides retain
+their fields. Re-read the range after the split before making another edit.
+
+## Bulk reshuffle of a crowded day
+
+1. `get_schedule` for the day; identify what's mis-placed against energy/load.
+2. One `write_events` call mixing `update` (a new `start`/`end` moves it; or
+   rename / re-area / re-type) and `shift` (nudge by `byMinutes`) ops — batched
+   so the day re-flows atomically. Target each event id once per call.
+3. Re-insert buffers that the reshuffle collapsed.
+4. Remove anything obsolete with `delete_events` `delete` by id. Use `clear`
+   (a `from`..`to` range, equal for one day) only to empty the range: it
+   removes every event that is not `readOnly`, also sleep and references
+   (SKILL.md §Workflow: reshuffle / bulk edits). It keeps an all-day event of
+   more than one day and returns `skippedMultiDay`; `delete` its bare id to
+   remove it. A returned `undoToken` reverses the call.
+5. `show_day`; surface the `undoToken`.
+
+## Find and edit an event or Inbox item without an id
+
+1. `find_event {query}` returns scheduled `events` and untimed `inbox` items.
+   `areaId`/`activityTypeId` filter both; `from`/`to` and `timeOfDay` filter
+   only events. Follow `nextInboxOffset` with `inboxOffset` and the same query
+   and filters when more Inbox matches are needed (context.md §Find events
+   and Inbox items).
+2. `ambiguous:true` describes event ties only. Resolve multiple plausible
+   Inbox matches or an event/Inbox collision too; ask when the user's intent
+   does not identify one. Each recurring series returns its best-matched
+   occurrence, with the nearest to today winning a tie.
+3. Use the resolved id with `write_events` for an event, or `manage_inbox`
+   for an Inbox item. To place an Inbox item, use its `schedule` op so the
+   intention leaves the tray.
+
+## Working a connected calendar (sync)
+
+See references/calendars.md for the full surface. The flow:
+
+1. `get_schedule` — if `integrations` is present, a calendar, task app, or
+   health source is connected. Read `sources[].status`, `defaultCalendarId`, and each event's
+   `source`/`calendarId`/`readOnly` before touching anything.
+2. Editing/creating an owned linked event (or one under the default sync
+   calendar) via `write_events`, or deleting via `delete_events`,
+   **propagates to the provider automatically** — no separate sync step. Surface
+   the `undoToken` as usual.
+3. **Never** edit, move, or delete a `readOnly` event (a calendar the user
+   does not own — also a mirrored copy — or a health source). `update` (except
+   `calendarId: null`), `shift`, and `delete` refuse it, and `clear` skips
+   it. A `checklist` op, and a `reflect` mark on a past day, are allowed.
+   Surface it as context and direct the user to the owner's calendar, or to the
+   health app for a health event. Unlink it with `calendarId: null` only when
+   the user asks for a local event, and never a health event
+   (calendars.md §Calendar targets).
+4. To explain an imported event's classification, point at the calendar's
+   `area`/`activityType`/`kind` policy and the account `aiClassify`/`aiRules`
+   in `integrations` (calendars.md §Import policies). A `fixed` mode explains
+   the value; an `automatic` mode means the AI chose it. To change a policy,
+   refer the user to the app calendar settings. Set `calendarId`,
+   `mirrorCalendarIds`, or `mirrorStyles` only on an explicit request, with
+   calendar ids resolved from `integrations` (calendars.md §Calendar targets).
+
+## Working the backlog (parked blocks)
+
+The tray holds *un-timed*
+intentions; the write surface is `manage_inbox`, the read path is
+`get_schedule` (`backlogCount` → `includeBacklog:true`, optionally filtered by
+`backlogPlannedOn`, `backlogProjectId` (an id, or `"none"`), and
+`backlogMinPriority` (0–4)). Search by name with `find_event {query}` and read
+its `inbox` results (context.md §Find events and Inbox items). A parked block
+may carry a planned day or window — see SKILL.md §Backlog.
+
+1. **Capture without cramming.** The user rattles off tasks with no clear time,
+   or the day's already full → `manage_inbox` `capture` ops (one batch, up to
+   50) instead of forcing blocks onto the dial. Attach `durationMinutes`,
+   `kind`, `areaId`/`activityTypeId`, `projectId` (a project with an area brings
+   that area when the op sends no `areaId`), and `priority` (0–4) where known
+   so a later placement sizes and classifies itself. A day named without a
+   time ("sometime Friday") → capture with a planned day/window, not an
+   invented start time (SKILL.md §Backlog). When the user spells a parked
+   intention out in pieces ("call the garage, get a quote, book it in"), that is
+   one block with a `checklist`, not three parked blocks — and the
+   steps ride along when it's later placed. Capturing something the user found
+   on a **page** is the one case that takes `sourceUrl` and `enrich` (SKILL.md
+   §Captured from a page): give the address so they get a clickable source chip,
+   and let `enrich` name it, since a paragraph of page text is not an intention.
+   Neither field belongs on a task they simply told you about. A raw dump
+   (pasted notes, a dictation transcript) → one `capture_text` op, and let
+   Reassign split it (SKILL.md §Backlog). Do not send it for tasks that you
+   already named with the user. When the user names a task list ("put it in
+   Todoist Work"), send its `calendarId` (SKILL.md §Inbox Source).
+2. **Plan the day from the tray.** Read `get_schedule` with
+   `includeBacklog:true`; follow `nextBacklogOffset` with the same filters for
+   a complete sweep. Items carry their planned day/window; an item whose window
+   ended before today is overdue. Match parked blocks to `freeSlots` —
+   inspect planned-for-that-day and overdue blocks, then prioritize by actual
+   deadlines, importance, dependencies, and available capacity,
+   demanding work into an energy peak, admin into the dip. Propose the
+   placements; on yes, place each with a `schedule` op (`id` + a local-datetime
+   `start`; add `recurrence` to repeat). A clash with a blocking event fails
+   with `conflict` and `nearestSlots`. Placing lifts it off the tray; revert one by
+   parking it back (step 3).
+3. **Park what slips.** Reviewing a day, a block was skipped or unfinished →
+   offer to `park` it (by the event `id`) back to the tray so the intention carries
+   forward. Park only accepts a native/owned-calendar one-off that hasn't been
+   reviewed; a recurring, sleep, reviewed, or not-owned event is refused with a
+   reason — edit it on the dial instead. `schedule` and `park` are inverses, so
+   an accidental placement or park is undone by its opposite. **Park before you
+   mark:** an event carrying a reflect status is refused ("Reviewed events can't
+   be added."), so parking has to happen before the `reflect` op, not after.
+   The parked item gets a new `id` and keeps the event's day as `plannedDate`.
+   For a block that was *partly* done, `park` keeps the ticked steps (the item
+   read does not show them), and a later one-off `schedule` gives them back.
+   Wherever `park` is refused (a reflected block, a recurring one, sleep, a
+   non-owned calendar event), `capture` the unticked steps as a new parked
+   block's `checklist`. That capture is the only way to carry the remainder
+   forward.
+4. **Re-plan overdue blocks.** An overdue block outlived its planned
+   window — offer to place it, re-plan it, or return it to Someday per
+   SKILL.md §Backlog (a recurring task's date is provider-owned;
+   see references/calendars.md).
+5. **Prune.** Drop a dead intention with `remove`; edit one in place with
+   `update`. Surface an `undoToken` when returned (references/limits.md).
+
+## Breaking a block into microtasks
+
+The user is stuck on a block, or asks what a big one actually involves. See
+SKILL.md §Microtasks for the op contract; microtasks work on any event kind.
+
+1. `find_event` or `get_schedule` to resolve the block and — critically — read
+   its existing `checklist`. An `items` edit **replaces the whole list**, so
+   sending one built from memory silently deletes steps you didn't echo.
+2. Propose the steps in chat first. Size them to the block: the first small
+   enough to start in under five minutes (adhd-methods.md §chunking), roughly one
+   per focus interval where the block carries a rhythm, and few enough to fit its
+   length. Don't break down a block that isn't stalling.
+3. On yes, one `write_events` op:
+   `{op:"checklist", id, items:[{text}, …]}`. Preserve the `id` of any existing
+   step you're keeping so its checked state survives. On a recurring block,
+   decide the target explicitly and *say which you used*: the bare series id
+   (every occurrence) or the `seriesId@YYYY-MM-DD` id (one day). Surface the
+   `undoToken`.
+4. As the user works, tick steps in a **separate call**:
+   `{op:"checklist", id, check:[…]}` — item ids only, always for one
+   occurrence, and only when they say it happened. This can't be batched with
+   step 3: two ops on the same event id in one `write_events` call are refused,
+   and a checkoff on a block whose steps don't exist *yet* is refused too. Take
+   the new item ids from the step 3 result, or read the block back.
+5. When the block's day is reviewed, the unticked steps are the leftover
+   intention — offer to `capture` them into the backlog (§Working the backlog,
+   step 3) rather than letting them disappear.
+
+For a **parked** block, the same idea uses `manage_inbox`'s
+`checklist: {items:[{id?, text}]}` (replaces the list) — there's no occurrence to tick against until it's
+scheduled, and the steps carry over when it is.
+
+## Reference & non-blocking events
+
+1. The user wants something *visible but not blocking* — a partner's event they
+   need to see (use `kind: "reference"`), or a backdrop like sleep/fasting/commute
+   (`kind: "non_blocking"`). See references/calendars.md §Event kinds.
+2. Create it with `write_events` `create` plus `kind`. A reference event keeps
+   its hours free; a non-blocking band may overlap real work without conflict.
+3. When scheduling work, treat both as free time — but don't schedule *into* a
+   reference event unless the user asks, and respect a non-blocking band's intent
+   (e.g. don't pile deep work over a "sleep" overlay just because it's allowed).

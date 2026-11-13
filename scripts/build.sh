@@ -13,7 +13,7 @@ lines=$(wc -l < "$SKILL"); [ "$lines" -le 600 ] || echo "  warn: SKILL.md is $li
 # + .mcp.json (Claude Code). A malformed one is invisible until the client that
 # reads it fails, so parse every one here rather than trusting the diff.
 echo "→ Validating plugin manifests"
-for manifest in plugin.json mcp.json .mcp.json .claude-plugin/plugin.json .claude-plugin/marketplace.json server.json; do
+for manifest in plugin.json mcp.json claude/.mcp.json claude/.claude-plugin/plugin.json .claude-plugin/marketplace.json server.json; do
   test -f "$ROOT/$manifest" || { echo "missing $manifest"; exit 1; }
 done
 ROOT="$ROOT" node -e '
@@ -24,8 +24,8 @@ ROOT="$ROOT" node -e '
     catch (e) { throw new Error(f + " is not valid JSON: " + e.message); }
   };
   const v = "1.0.0";
-  const plugin = load("plugin.json"), mcp = load("mcp.json"), claudeMcp = load(".mcp.json");
-  load(".claude-plugin/plugin.json"); load(".claude-plugin/marketplace.json"); load("server.json");
+  const plugin = load("plugin.json"), mcp = load("mcp.json"), claudeMcp = load("claude/.mcp.json");
+  load("claude/.claude-plugin/plugin.json"); load(".claude-plugin/marketplace.json"); load("server.json");
   if (plugin.$schema !== `https://agent-plugins.org/schemas/${v}/plugin.schema.json`)
     throw new Error("plugin.json: wrong or missing Agent Plugins $schema");
   if (mcp.$schema !== `https://agent-plugins.org/schemas/${v}/mcp.schema.json`)
@@ -69,14 +69,14 @@ ROOT="$ROOT" node -e '
     return new Map(entries.map(([name, s]) => [name, s.url]));
   };
   const spec = urls("mcp.json", mcp, ["stdio", "streamable-http", "sse"]);
-  const claude = urls(".mcp.json", claudeMcp, ["stdio", "http", "sse"]);
+  const claude = urls("claude/.mcp.json", claudeMcp, ["stdio", "http", "sse"]);
   for (const [name, url] of spec) {
-    if (!claude.has(name)) throw new Error(`.mcp.json: missing server "${name}" that mcp.json declares`);
+    if (!claude.has(name)) throw new Error(`claude/.mcp.json: missing server "${name}" that mcp.json declares`);
     if (claude.get(name) !== url)
-      throw new Error(`server "${name}" url drift: mcp.json ${url} vs .mcp.json ${claude.get(name)}`);
+      throw new Error(`server "${name}" url drift: mcp.json ${url} vs claude/.mcp.json ${claude.get(name)}`);
   }
   for (const name of claude.keys())
-    if (!spec.has(name)) throw new Error(`mcp.json: missing server "${name}" that .mcp.json declares`);
+    if (!spec.has(name)) throw new Error(`mcp.json: missing server "${name}" that claude/.mcp.json declares`);
 '
 
 # claude.ai and Cowork refuse to install a plugin with a top-level bin/, so the
@@ -84,7 +84,12 @@ ROOT="$ROOT" node -e '
 echo "→ Validating surfaces"
 test ! -e "$ROOT/bin" || { echo "top-level bin/ blocks Cowork and Claude apps; move it (npm shim → npm/)"; exit 1; }
 
+# The Claude directory takes only a clean plugin folder from an unverified
+# organization, so claude/ holds a copy of skills/. skills/ is the source.
+echo "→ Syncing claude/skills from skills/"
+rm -rf "$ROOT/claude/skills" && cp -R "$ROOT/skills" "$ROOT/claude/skills"
+
 echo "→ Validating version lockstep"
 node "$ROOT/scripts/version.mjs" check
 
-echo "✓ Build complete. Plugin + standalone skill consume skills/ in place; nothing to copy."
+echo "✓ Build complete. skills/ is the source; claude/skills is its copy for the Claude plugin."

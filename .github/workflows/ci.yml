@@ -25,6 +25,9 @@ jobs:
       - name: Validate plugin
         run: bash scripts/build.sh
 
+      - name: Check claude/skills is a current copy of skills/
+        run: test -z "$(git status --porcelain -- claude)"
+
       - name: Check npm shim
         run: |
           node --check npm/reassign-mcp.js
