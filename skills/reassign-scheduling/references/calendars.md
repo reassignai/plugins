@@ -31,14 +31,17 @@ the two meanings apart when you talk to the user.
 The rules below are provider-agnostic. Task apps share these behaviors:
 
 - **A task-linked event is a one-off.** Reassign does not translate a local
-  recurrence into a provider series. The exact time and duration live only in
-  Reassign; a task app stores a date.
+  recurrence into a provider series. Todoist, TickTick, and Apple Reminders
+  store a date and a time. Google Tasks, Microsoft To Do, and Linear store a
+  date only; the time and the length live only in Reassign.
 - **Task completion.** A reflect mark on a task-linked event mirrors to the
   task's lifecycle: `kept` completes the task, `skipped` reopens it. See
   references/reflection.md. A read event has `taskDone: true` when its linked
   task (or the task of its series) is closed. This can be true with no
   `reflect` mark, for example after "Mark task as done" in the app.
-- **Dated tasks land in the Inbox**, not on the dial. Undated tasks are
+- **One rule places a task.** A task with no date, or with a date only, lands
+  in the Inbox. A task with a date and a time (Todoist, TickTick, Apple
+  Reminders) goes on the dial at that time. Undated tasks are
   imported only when the user turns that on for the list or team. A new Apple
   Reminders list has it on by default. The due date
   becomes the item's `plannedDate` (a due + later deadline becomes its
@@ -76,15 +79,20 @@ The rules below are provider-agnostic. Task apps share these behaviors:
     `A scheduled task keeps the project of its list. Change the project in the Inbox.`
   - The server never refuses `projectId: null` (no project). This `read_only`
     is not an access problem: relay the reason, and do not offer an upgrade.
-- **Place and remove keep the task.** Scheduling or moving a linked slot never
-  changes the provider due date. Removing a linked slot returns the task to
-  the Inbox with its due date unchanged.
+- **Place and move write the slot back.** A `schedule` or a move of a linked
+  block writes its date to the task app. Todoist, TickTick, and Apple
+  Reminders also get the time. A recurring block, and a second work session of
+  a task, write no date. A place or a move never completes the task.
+- **The task app moves the block.** A new date or time in the app moves the
+  block there. A cleared time (a date-only app: a cleared date) sends the task
+  to the Inbox. A date-only app keeps the time and the length of the block.
 - **TickTick limits.** The TickTick API cannot reopen a task, so a `skipped`
   mark does not reopen it; the user reopens it in TickTick. A recurring
   TickTick task cannot lose its dates from Reassign: complete it or change its
   schedule in TickTick. Completed TickTick history cannot change the current
   task.
-- **Linear limits.** Reassign cannot delete a Linear issue. A team can map
+- **Linear limits.** A task delete moves a Linear issue to the Linear trash
+  (SKILL.md §Backlog). A team can map
   estimate points to hours. The user sets this in the app, and the Inbox
   duration then follows the estimate. `get_schedule` does not show it.
 
@@ -287,11 +295,15 @@ On each event in `get_schedule` / `find_event`:
   calendar's name in `integrations`. Changed recurring occurrences inherit the
   series' calendar, mirrors, and copy styles unless the occurrence has its own
   calendar.
+- `homePending: true` — a move to the shown `calendarId` is not done yet.
+  `source` still shows the provider of the current home.
 - `readOnly: true` — the event is from a calendar the user **does not own**, or
   from a health source. **Never edit, move, or delete it** via
   `write_events`/`delete_events`. `update` (except `calendarId: null`), `shift`,
-  and `delete` refuse it, and `clear` skips it. A `checklist` op, and a `reflect`
-  mark on a past day, are allowed. Surface it as context and direct the user to
+  and `delete` refuse it, and `clear` skips it. A `checklist` op, a `reflect`
+  mark on a past day, and an `update` that changes only `mirrorCalendarIds` and
+  `mirrorStyles` (no `scope:"future"`) are allowed. That update may send back
+  the current `calendarId`; a new home is `read_only`. Surface it as context and direct the user to
   the owner's calendar, or to the health app for a health event. For a local
   event that the user can edit, see `calendarId: null` in §Calendar targets
   (not for a health event).
@@ -323,15 +335,21 @@ surface the `undoToken`.
 A created or edited event already follows the user's default calendar. Set a
 target only when the user names a calendar, and resolve its id from
 `integrations.sources[].calendars[]` first. A calendar id needs a plan with calendar sync
-(the trial includes it) and is whole-series only.
+(the trial includes it).
+
+- On an occurrence id, `calendarId` and `mirrorCalendarIds` fork that day: only
+  the changed day gets the new home or copy set. With `scope:"future"`, they
+  split the series: only the new series changes. `mirrorStyles` belongs to the
+  series: on one occurrence it is `validation`, and with `scope:"future"` the
+  new series takes it.
 
 - `calendarId` on `create`: omit it for the default calendar; `null` keeps the
   event on the dial only. A one-off with `calendarId: null` may still carry
   `mirrorCalendarIds`.
 - `calendarId` on `update`: a calendar id moves the event to that calendar.
   Omit it to keep the current home.
-- `calendarId: null` on `update` unlinks the whole series (a bare id, no
-  `scope`). It deletes the home link and every mirror copy, and keeps the dial
+- `calendarId: null` on `update` with a bare id unlinks the whole series. It
+  deletes the home link and every mirror copy, and keeps the dial
   block. The same op may also carry `start`, `end`, `name`, `notes`, `areaId`,
   `activityTypeId`, `projectId`, `priority`, and `kind`; the server applies
   them first, in one transaction. `mirrorCalendarIds`, `mirrorStyles`,
@@ -340,8 +358,14 @@ target only when the user names a calendar, and resolve its id from
   dial-only, the server ignores `calendarId: null`, and the other fields apply
   as a normal `update`.
   Send `mirrorCalendarIds: []` to remove its copies.
-- When the read shows no `calendarId` and no copies, `calendarId: null` fails
-  with `validation` ("nothing to unlink"). Omit it.
+- When a read shows no `calendarId` and no copies, the event has no calendar
+  link yet. `calendarId: null` then stores the dial-only choice, so a later
+  edit does not publish it to the default calendar. The raw id of a changed
+  occurrence with no link is `validation`: send the bare series id.
+- `calendarId: null` with an occurrence id, or with `scope:"future"`, puts only
+  the new row on the dial only. The rest of the series keeps its calendar. A
+  day that has its own calendar event is `validation`: send the bare series id
+  to unlink it.
 - `calendarId: null` also works on a `readOnly` event. Do not send it on a
   health event (§Health sources). The owner's event gets
   no delete and does not change. The provider deletes the copies of the event.
@@ -409,7 +433,7 @@ Do not infer "Busy" from an omitted `busyCopyTitle`.
 - `mirrorStyles` on `create` or `update` maps a copy calendar id to a style.
   On `update`, it **replaces** the map; `{}` clears all event overrides. Read
   the current map and preserve other entries when changing just one copy.
-  It is whole-series only.
+  It takes the bare series id or `scope:"future"`, not one occurrence.
 - Each key must be in the `mirrorCalendarIds` that the op leaves on the
   event, else the op fails with `validation`. On `update` without
   `mirrorCalendarIds`, the current copy set counts.

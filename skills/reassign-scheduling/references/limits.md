@@ -6,14 +6,22 @@ The current plan is `trial`, `pro`, or `none`. An active trial or subscription
 allows MCP access, including recurrence, backlog, focus intervals, and
 microtasks. There are no free/guest feature tiers or plan-based date horizons.
 
-A grant can outlive subscription access. When the plan becomes `none`, reads
-and writes are rejected **before any tool runs**: HTTP 403, JSON-RPC error
-`code: -32600`, message “Reassign needs an active subscription.” Its error
-`data` is `{code:"permission", feature:"mcp"}`; this is a transport refusal,
-not a tool-result envelope. Relay it and explain that subscription
-access must be restored. Shorter dates, one-off events, smaller batches, and
-reconnecting do not bypass it. Other 403 responses can have different causes
-(such as a rejected origin); do not treat every 403 as a subscription failure.
+A grant can outlive subscription access. When the plan becomes `none`, no
+tool runs:
+
+- The handshake, `tools/list`, and the resource reads still work.
+- A `tools/call` returns a plain text result with `isError: true`, not the
+  `{"error": {code}}` envelope. The text says that nothing was read or
+  changed, and it gives a link that reactivates the plan. Give the user that
+  link, and do not call a Reassign tool again until the user says that the
+  plan is active.
+- Any other request is HTTP 403, JSON-RPC error `code: -32600`, message
+  “Reassign needs an active subscription.”, with error `data`
+  `{code:"permission", feature:"mcp"}`.
+
+Shorter dates, one-off events, smaller batches, and a reconnect do not bypass
+it. Other 403 responses can have different causes (such as a rejected origin);
+do not treat every 403 as a subscription failure.
 A revoked or invalid authorization instead needs authentication/reconnection.
 A new consent does not bring back a token or a code from before a revoke. The
 client needs a new sign-in flow.
@@ -162,7 +170,9 @@ it is a `validation` row ("Nothing to undo for this token"). A token past
 change stays."). A malformed token is `validation`, and a well-formed unknown
 token is `not_found`. Do not retry these tokens. When a calendar
 sync sends the same change at that moment, the undo row fails with `conflict`
-and changes nothing: retry it after a moment.
+and changes nothing: retry it after a moment. The undo of a `mode: "delete"`
+cancels the task delete while it waits. After the delete reached the task
+app, the undo row is a `conflict`: the task is gone, and a retry cannot help.
 
 A token is `stale` when a row that its write touched changed again later (a
 move, a park, a delete, a sync edit, a project or priority change), or when it
