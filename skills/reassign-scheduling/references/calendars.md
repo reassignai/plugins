@@ -81,8 +81,8 @@ The rules below are provider-agnostic. Task apps share these behaviors:
     is not an access problem: relay the reason, and do not offer an upgrade.
 - **Place and move write the slot back.** A `schedule` or a move of a linked
   block writes its date to the task app. Todoist, TickTick, and Apple
-  Reminders also get the time. A recurring block writes no date. A place or a
-  move never completes the task.
+  Reminders also get the time. A recurring block, and a second work session of
+  a task, write no date. A place or a move never completes the task.
 - **The task app moves the block.** A new date or time in the app moves the
   block there. A cleared time (a date-only app: a cleared date) sends the task
   to the Inbox. A date-only app keeps the time and the length of the block.
@@ -358,8 +358,10 @@ target only when the user names a calendar, and resolve its id from
   dial-only, the server ignores `calendarId: null`, and the other fields apply
   as a normal `update`.
   Send `mirrorCalendarIds: []` to remove its copies.
-- On an event with no calendar link, `calendarId: null` stores the dial-only
-  choice, so a later edit does not publish it to the default calendar.
+- When a read shows no `calendarId` and no copies, the event has no calendar
+  link yet. `calendarId: null` then stores the dial-only choice, so a later
+  edit does not publish it to the default calendar. The raw id of a changed
+  occurrence with no link is `validation`: send the bare series id.
 - `calendarId: null` with an occurrence id, or with `scope:"future"`, puts only
   the new row on the dial only. The rest of the series keeps its calendar. A
   day that has its own calendar event is `validation`: send the bare series id

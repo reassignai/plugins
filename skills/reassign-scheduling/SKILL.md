@@ -232,7 +232,8 @@ essentials:
   removes the link and keeps a local event that the user can edit. Send it only
   when the user asks, and never on a health event. It may carry the unlink edits
   (references/calendars.md). On a `readOnly` event, an `update` that changes
-  only `mirrorCalendarIds` and `mirrorStyles` is allowed. `homePending: true`
+  only `mirrorCalendarIds` and `mirrorStyles` is allowed, with no
+  `scope:"future"`. A new home there is `read_only`. `homePending: true`
   means that a move to the shown `calendarId` is not done yet.
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
@@ -396,8 +397,9 @@ active-trial/subscription access as the rest of MCP.
   `delete_events` `delete`, also deletes the linked task in its app for good.
   A Linear issue goes to the Linear trash. Send it only when the user asks to
   delete the task itself, not only the block. The `delete` takes the bare id,
-  with no `scope`. An item or event with no task link is `validation`. The
-  undo is a `conflict` after the delete reached the app.
+  with no `scope`. An item or event with no task link, or an old TickTick
+  history copy, is `validation`: remove it without `mode`. The undo is a
+  `conflict` after the delete reached the app.
 - A recorded `undoToken` reverses the whole call with `undo_changes`.
   `schedule` and `park` are also **inverses** for use after the window.
 
@@ -624,12 +626,9 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
   it is refused. `sourceUrl` is refused on one occurrence and with
-  `scope:"future"`, unless it equals the current value. `calendarId` and
-  `mirrorCalendarIds` on an occurrence id fork that day, and with
-  `scope:"future"` they split the series: only the new row changes.
-  `mirrorStyles` takes the bare series id or `scope:"future"`
-  (references/calendars.md §Calendar targets). `recurrence:null` turns a
-  series back into a one-off.
+  `scope:"future"`, unless it equals the current value. For the calendar
+  fields on one occurrence or a split, see references/calendars.md §Calendar
+  targets. `recurrence:null` turns a series back into a one-off.
   When a new rule skips the anchor day, the result carries `firstOccurrence`.
 - Target each event id at most once per call, and each series with at most
   one `scope:"future"` op and not also its bare id. `render:true` repaints.

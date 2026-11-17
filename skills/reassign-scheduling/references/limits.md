@@ -19,7 +19,7 @@ tool runs:
   “Reassign needs an active subscription.”, with error `data`
   `{code:"permission", feature:"mcp"}`.
 
-Shorter dates, one-off events, smaller batches, and reconnecting do not bypass
+Shorter dates, one-off events, smaller batches, and a reconnect do not bypass
 it. Other 403 responses can have different causes (such as a rejected origin);
 do not treat every 403 as a subscription failure.
 A revoked or invalid authorization instead needs authentication/reconnection.

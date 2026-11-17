@@ -182,7 +182,7 @@ See references/calendars.md for the full surface. The flow:
    does not own — also a mirrored copy — or a health source). `update` (except
    `calendarId: null`), `shift`, and `delete` refuse it, and `clear` skips
    it. A `checklist` op, a `reflect` mark on a past day, and a copy-only
-   `update` (`mirrorCalendarIds`, `mirrorStyles`) are allowed.
+   `update` (calendars.md §Per-event sync fields) are allowed.
    Surface it as context and direct the user to the owner's calendar, or to the
    health app for a health event. Unlink it with `calendarId: null` only when
    the user asks for a local event, and never a health event
