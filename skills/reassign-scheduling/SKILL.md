@@ -11,7 +11,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.25.0"
+  version: "1.26.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -87,14 +87,16 @@ see references/workflows.md. Use references/adhd-methods.md selectively.
 
 MCP requires an active trial or subscription. The current plan is checked on
 **every request**, including reads: `trial` and `pro` have access; `none` is
-rejected before a tool runs. A lapsed trial does not become a free account.
+refused, and no tool runs. A lapsed trial does not become a free account.
 There are no separate feature gates or plan-based date horizons for callers
 with access: recurrence, backlog, focus intervals, and microtasks are included.
 `reflect` and `review_day` `confirm` require a past date in the user's timezone.
 
-- A subscription rejection is HTTP 403 with “Reassign needs an active
-  subscription.” Relay it; a one-off, shorter date range, or different tool
-  cannot bypass it. Reconnecting does not restore subscription access.
+- With a lapsed plan, the connection and the tool list still work. Each tool
+  call returns a plain text result with `isError: true`: nothing was read or
+  changed, and a link reactivates the plan. Give the user that link. Do not
+  call a Reassign tool again until the user says that the plan is active. A
+  one-off, a shorter date range, another tool, or a reconnect does not help.
 - Tool refusals carry a per-row `error.code` or a whole-tool
   `{"error": {"code", "message", ...}}` JSON text (`isError:true`), also on
   `show_day`. Distinguish plan/action `permission`, connection `scope`, and
@@ -229,7 +231,9 @@ essentials:
   `reflect` mark on a past day, are allowed. `calendarId: null` on `update`
   removes the link and keeps a local event that the user can edit. Send it only
   when the user asks, and never on a health event. It may carry the unlink edits
-  (references/calendars.md).
+  (references/calendars.md). On a `readOnly` event, an `update` that changes
+  only `mirrorCalendarIds` and `mirrorStyles` is allowed. `homePending: true`
+  means that a move to the shown `calendarId` is not done yet.
 - Editing or creating a calendar-linked event (or any event under the user's
   default calendar) through `write_events`, and deleting one
   through `delete_events`, **propagates to the provider automatically** — exactly
@@ -362,7 +366,8 @@ active-trial/subscription access as the rest of MCP.
     date or window back; a recurring task's date is provider-owned and refused
     with `read_only` (the user changes it in that app — references/calendars.md).
     `sourceUrl: null` clears a stale link off a block the user is keeping.
-  - `remove` — delete one by `id`.
+  - `remove` — delete one by `id`. On a task-linked block it completes the
+    task in its app.
   - `schedule` — **place** a parked block (`id`) on the dial at `start` (a
     local datetime; its `durationMinutes` sizes it; set `recurrence` to repeat)
     and lift it off the tray. The new event takes the item's `kind`,
@@ -387,6 +392,12 @@ active-trial/subscription access as the rest of MCP.
   the ticked steps, but the item read does not show them. A later `schedule`
   as a one-off event gives them back. The checklist of a Microsoft To Do Inbox
   item syncs both ways with the task in To Do.
+- **Delete a task.** `mode: "delete"` on a `manage_inbox` `remove`, or on a
+  `delete_events` `delete`, also deletes the linked task in its app for good.
+  A Linear issue goes to the Linear trash. Send it only when the user asks to
+  delete the task itself, not only the block. The `delete` takes the bare id,
+  with no `scope`. An item or event with no task link is `validation`. The
+  undo is a `conflict` after the delete reached the app.
 - A recorded `undoToken` reverses the whole call with `undo_changes`.
   `schedule` and `park` are also **inverses** for use after the window.
 
@@ -407,7 +418,8 @@ new item.
 - A list id without sync access is `permission` with `feature:"calendar_sync"`;
   a list that cannot take a new item is `validation`.
 - The task is created after the call returns. A failed create leaves the item
-  in Reassign only. The undo deletes the task in its app (Linear closes it).
+  in Reassign only. The undo deletes the task in its app (a Linear issue goes
+  to the Linear trash).
 - `get_schedule` does not show the Source of an item or the default list of
   a project.
 - Send a `calendarId` only when the user named the list. Tell the user when a
@@ -611,16 +623,21 @@ Manage projects with `manage_categories` (references/taxonomy.md §Projects).
   §All-day events).
 - Changing the repeat itself (`recurrence`/`recurrenceEnd`) needs the bare
   series id or an occurrence id with `scope:"future"`. On a single occurrence
-  it is refused. Series-level fields (`calendarId`, `mirrorCalendarIds`,
-  `mirrorStyles`, `sourceUrl`) are refused on one occurrence and with
-  `scope:"future"`, unless they equal the current value. Send them on the bare
-  series id. `recurrence:null` turns a series back into a one-off.
+  it is refused. `sourceUrl` is refused on one occurrence and with
+  `scope:"future"`, unless it equals the current value. `calendarId` and
+  `mirrorCalendarIds` on an occurrence id fork that day, and with
+  `scope:"future"` they split the series: only the new row changes.
+  `mirrorStyles` takes the bare series id or `scope:"future"`
+  (references/calendars.md §Calendar targets). `recurrence:null` turns a
+  series back into a one-off.
   When a new rule skips the anchor day, the result carries `firstOccurrence`.
 - Target each event id at most once per call, and each series with at most
   one `scope:"future"` op and not also its bare id. `render:true` repaints.
 - `delete_events`: `delete` by `id` (same id rules; `scope:"future"` on an
   occurrence id returns the truncated series in `updated`), or `clear` with
-  `from`+`to`. To remove only obsolete events, `delete` them by id.
+  `from`+`to`. To remove only obsolete events, `delete` them by id. A
+  `delete` of a task-linked event completes the task in its app; `mode:
+  "delete"` deletes the task there for good (§Backlog).
 - `clear` takes 31 days at most; a `to` before `from` fails with `validation`.
   `clear` removes **every** event in the range that is not `readOnly`. This
   includes sleep, `reference`, and `non_blocking` events, and owned
@@ -683,8 +700,3 @@ Use an optional UUID `submissionId`; retry with the same UUID and identical
 reports within 24 hours. A new submission needs a new UUID. On `rate_limited`,
 keep the draft and wait as directed. Retry a transient failure at most once;
 claim acceptance only after the tool confirms it (references/limits.md).
-
-The server can also list `get_more_tools {context}`. It is not a Reassign
-tool: it records a missing-capability report (the first 500 characters of
-`context`) and changes no data. Call it only when no tool fits the task. Write
-the goal in general words; do not put private schedule contents in `context`.
