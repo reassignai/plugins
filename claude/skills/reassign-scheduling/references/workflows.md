@@ -292,10 +292,12 @@ scheduled, and the steps carry over when it is.
 ## Reference & non-blocking events
 
 1. The user wants something *visible but not blocking* — a partner's event they
-   need to see (use `kind: "reference"`), or a backdrop like sleep/fasting/commute
-   (`kind: "non_blocking"`). See references/calendars.md §Event kinds.
+   need to see (use `kind: "reference"`), or their own marker for a background
+   state like fasting or on call (`kind: "non_blocking"`). See
+   references/calendars.md §Event kinds.
 2. Create it with `write_events` `create` plus `kind`. A reference event keeps
    its hours free; a non-blocking band may overlap real work without conflict.
-3. When scheduling work, treat both as free time — but don't schedule *into* a
-   reference event unless the user asks, and respect a non-blocking band's intent
-   (e.g. don't pile deep work over a "sleep" overlay just because it's allowed).
+3. When scheduling work, treat both as free time: work may go over them. Respect
+   a non-blocking band's intent (e.g. do not put a meal inside a fast).
+4. When the user asks how busy or overbooked they are, count blocking events
+   only. A reference or non-blocking event adds no time and is never a clash.

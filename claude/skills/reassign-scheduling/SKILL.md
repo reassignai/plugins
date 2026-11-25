@@ -11,7 +11,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.26.0"
+  version: "1.26.1"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -111,20 +111,22 @@ event carries it. Set it with `kind` on a `write_events` create/update or a
 
 - **blocking** (default) — occupies time, cannot overlap; counts in
   `loadByArea`/`loadByActivityType`/`loadByProject` and consumes free slots.
-- **non_blocking** — an overlay band (sleep, fasting, commute) that may overlap
-  anything and never conflicts. It does *not* consume free slots; its minutes
-  surface separately as `nonBlockingLoadByArea`/`nonBlockingLoadByActivityType`
-  (no project load).
+- **non_blocking** — the user's own marker for a background state (fasting,
+  on call, out of office) that may overlap anything and never conflicts. It
+  does *not* take time or consume free slots; its minutes surface separately
+  as `nonBlockingLoadByArea`/`nonBlockingLoadByActivityType` (no project load).
   Use it when the user wants something present on the dial without it blocking
   scheduling.
-- **reference** — see-only (a memo): something the user wants to *view* but
-  isn't doing — a kid's training they drop off at, an event mirrored from a
-  partner's calendar. Its hours stay free for scheduling. Don't move, delete, or
-  schedule work *into* it unless explicitly asked.
+- **reference** — see-only (a memo): someone else's time or a marker the user
+  plans around — a kid's class, an event mirrored from a partner's calendar, a
+  birthday. It takes no time: its hours stay free, and work may go over it.
+  Do not move or delete it unless explicitly asked.
 
-When choosing a kind, ask whether the user is *doing* the thing (blocking),
-*living through* it as a backdrop (non-blocking), or just *watching* it
-(reference). Don't make everything blocking.
+For "am I overbooked?", busy time and clashes, count blocking events only.
+
+Choose a kind with one test: could the user do something unrelated then? No
+means blocking (also sleep, meals, travel). Their own background state is
+non-blocking. Someone else's time or a marker is reference.
 
 ## Focus intervals (pomodoro)
 
