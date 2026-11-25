@@ -122,15 +122,11 @@ event carries it. Set it with `kind` on a `write_events` create/update or a
   birthday. It takes no time: its hours stay free, and work may go over it.
   Do not move or delete it unless explicitly asked.
 
-**Busy time counts blocking events only.** For "am I overbooked?", "how busy
-am I?", "how much is planned?" or "do I have a clash?", count only blocking
-events. A `non_blocking` or `reference` event adds no time and is never a
-clash, also when it overlaps a blocking event. Only two blocking events that
-overlap are a clash.
+For "am I overbooked?", busy time and clashes, count blocking events only.
 
-When choosing a kind, ask whether the user is *doing* the thing (blocking),
-*living through* it as a backdrop (non-blocking), or just *watching* it
-(reference). Don't make everything blocking.
+Choose a kind with one test: could the user do something unrelated then? No
+means blocking (also sleep, meals, travel). Their own background state is
+non-blocking. Someone else's time or a marker is reference.
 
 ## Focus intervals (pomodoro)
 
