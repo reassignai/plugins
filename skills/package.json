@@ -1,0 +1,8 @@
+{
+  "name": "@reassign/skills",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Reassign agent skills, for an install by commit: github:reassignai/plugins#<sha>&path:/skills",
+  "license": "Apache-2.0",
+  "files": ["reassign-scheduling"]
+}

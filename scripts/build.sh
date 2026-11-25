@@ -93,6 +93,18 @@ cmp -s "$ROOT/claude/$icon" "$ROOT/assets/logo.png" || { echo "claude/$icon must
 
 echo "→ Syncing claude/skills from skills/"
 rm -rf "$ROOT/claude/skills" && cp -R "$ROOT/skills" "$ROOT/claude/skills"
+# skills/package.json packs skills/ for a pnpm install by commit; the plugin needs only the skill folders.
+rm -f "$ROOT/claude/skills/package.json"
+
+echo "→ Validating skills/package.json"
+ROOT="$ROOT" node -e '
+  const { readdirSync, readFileSync } = require("fs"), { join } = require("path");
+  const dir = join(process.env.ROOT, "skills");
+  const files = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).files ?? [];
+  const skills = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  const missing = skills.filter((s) => !files.includes(s));
+  if (missing.length) throw new Error("skills/package.json files must list every skill folder; missing: " + missing.join(", "));
+'
 
 echo "→ Validating version lockstep"
 node "$ROOT/scripts/version.mjs" check

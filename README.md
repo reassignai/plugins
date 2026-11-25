@@ -30,6 +30,7 @@ plugins/                                  ← repo root = Agent Plugins root; cl
 │   ├── .mcp.json                         ← Claude Code MCP config (type "http")
 │   └── skills/                           ← copy of skills/, made by scripts/build.sh
 ├── skills/
+│   ├── package.json                      ← @reassign/skills, for an install by commit
 │   └── reassign-scheduling/              ← canonical skill (claude/skills is its copy)
 │       ├── SKILL.md
 │       └── references/
@@ -58,6 +59,18 @@ plugins/                                  ← repo root = Agent Plugins root; cl
 The `skills/reassign-scheduling/` directory is the single source of truth. The
 Claude plugin reads a copy in `claude/skills/`: `scripts/build.sh` makes it, and
 CI fails if the copy is not committed. Never edit `claude/skills/` by hand.
+
+`skills/package.json` makes `skills/` an installable package with no
+dependencies, `@reassign/skills`. The Reassign MCP server installs it by
+commit and serves the skill over MCP (`io.modelcontextprotocol/skills`):
+
+```bash
+pnpm add "@reassign/skills@github:reassignai/plugins#<sha>&path:/skills"
+```
+
+The commit is the version, so the package version stays `0.0.0`. A new skill
+folder goes into its `files` list; `scripts/build.sh` checks it. The build does
+not copy `package.json` into `claude/skills/`.
 
 ### Two manifests, on purpose
 
