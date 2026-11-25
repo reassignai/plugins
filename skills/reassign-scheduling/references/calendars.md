@@ -152,8 +152,8 @@ to both: it decides whether an event *occupies time*.
 | kind | Occupies time? | On the dial | Use for |
 |---|---|---|---|
 | `blocking` (default) | yes — can't overlap, eats free slots | full ring wedge | actual work/commitments the user is *doing* |
-| `non_blocking` | no — may overlap anything | slim inner band | backdrops the user *lives through*: sleep, fasting, commute |
-| `reference` | no — hours stay free | slim outer band | things the user only *watches*: a partner's event, a kid's training drop-off |
+| `non_blocking` | no — may overlap anything | slim inner band | the user's own markers for a background state: fasting, on call, out of office |
+| `reference` | no — hours stay free | slim outer band | things the user only *watches* or plans around: a partner's event, a kid's class, a birthday |
 
 - Every read event carries `kind`: `"blocking"`, `"non_blocking"`, or
   `"reference"`. Set it with the `kind` field on a `write_events` create or
@@ -166,9 +166,12 @@ to both: it decides whether an event *occupies time*.
   do not count non-blocking minutes. When present, those minutes show
   separately as `nonBlockingLoadByArea` / `nonBlockingLoadByActivityType`
   (there is no `nonBlockingLoadByProject`). So "where did my time go" still
-  accounts for a day of mostly sleep/fasting, and those bands do not block work.
-- **reference** is see-only: never move, delete, or schedule work *into* it
-  unless the user explicitly asks. Treat it as information, not a commitment.
+  accounts for a day with a long fast, and those bands do not block work.
+- **reference** is see-only: never move or delete it unless the user
+  explicitly asks. It takes no time, so work may go over it. Treat it as
+  information, not a commitment.
+- Busy time, load, "overbooked" and clashes count blocking events only. A
+  `non_blocking` or `reference` event never adds time and never clashes.
 
 ## All-day events
 
