@@ -11,7 +11,7 @@ description: >-
   changing times. Requires the Reassign MCP; not for diagnosis or treatment.
 license: Apache-2.0
 metadata:
-  version: "1.26.1"
+  version: "1.27.0"
   author: Pogled Naprej d.o.o.
   category: productivity
 ---
@@ -123,10 +123,33 @@ event carries it. Set it with `kind` on a `write_events` create/update or a
   Do not move or delete it unless explicitly asked.
 
 For "am I overbooked?", busy time and clashes, count blocking events only.
+A group is the one exception (§Groups).
 
 Choose a kind with one test: could the user do something unrelated then? No
 means blocking (also sleep, meals, travel). Their own background state is
 non-blocking. Someone else's time or a marker is reference.
+
+## Groups (time reservations)
+
+A group (`isGroup: true`) is a reservation in time, not time spent. Its span
+takes no time, and an empty group takes no time. Its tasks (`taskIds`, the
+non_blocking events fully inside it) are the real time.
+
+- **Busy time.** Count the blocking events that are not groups, plus the
+  tasks of each group. Never count the span of a group.
+- **Add to a group.** A new blocking event that fits fully inside a group
+  becomes one of its tasks. One that only partly overlaps a group is not
+  added. Ask the user whether to extend the group for that day. Then update
+  the group's `start` or `end`, and then add the event.
+- **Time shield.** `accepts` lists the areas and activity types that belong
+  in the group. Never put a misfit in a group in silence. Tell the user what
+  fits ("Deep focus is for Work; Gym is Health"), and offer another time or
+  another area. A misfit write lands with `warnings:["group_misfit"]`, and
+  the day gets a check. Repeat the warning to the user.
+- **Ungroup.** `isGroup: false` on a one-off group makes its former blocking
+  tasks blocking again on free time. The echo lists them in `restoredIds`.
+
+See references/calendars.md §Groups and time shields.
 
 ## Focus intervals (pomodoro)
 

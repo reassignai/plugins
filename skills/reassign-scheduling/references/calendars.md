@@ -171,7 +171,46 @@ to both: it decides whether an event *occupies time*.
   explicitly asks. It takes no time, so work may go over it. Treat it as
   information, not a commitment.
 - Busy time, load, "overbooked" and clashes count blocking events only. A
-  `non_blocking` or `reference` event never adds time and never clashes.
+  `non_blocking` or `reference` event never adds time and never clashes. A
+  group is the one exception (§Groups and time shields).
+
+## Groups and time shields
+
+A group is a timed blocking event with `isGroup: true`. It is a reservation
+in time, not time spent. Its span takes no time. An empty group takes no
+time. A group stays on the dial only: it has no calendar link, `calendarId`
+or `mirrorCalendarIds`.
+
+| Field | Where | Meaning |
+|---|---|---|
+| `isGroup` | every event | `true` = a group |
+| `taskIds` | `get_schedule` day event | the tasks: the `non_blocking` events fully inside the group, by start |
+| `groupId` | `get_schedule` day event | the group of a task, else `null` |
+| `overMinutes` | `get_schedule` day event | the task time past the end of the group |
+| `accepts` | every event | the time shield: `{areaIds, activityTypeIds}`; `null` or an empty list accepts any |
+| `restoredIds` | `write_events` update echo | the tasks that are blocking again after `isGroup: false` |
+
+- **Busy time.** For "how busy am I", load and "overbooked", count the
+  blocking events that are not groups, plus the tasks of each group. Never
+  count the span of a group. The tasks are the real time.
+- **A new event inside a group.** A new blocking event that fits fully inside
+  a group becomes one of its tasks.
+- **A new event that partly overlaps a group.** It is not added. The group
+  does not extend by itself. Ask the user whether to extend the group for
+  that day. With a yes, update the group's `start` or `end` with
+  `write_events`, then add the event.
+- **Time shield.** `accepts` lists the areas and activity types that belong
+  in the group. When the user asks to block something in a shielded group
+  and its area or activity type does not fit, warn the user. Say what fits
+  ("Deep focus is for Work; Gym is Health"). Offer another time or another
+  area. Never put a misfit in a group in silence.
+- **The misfit warning.** A misfit write still lands. The echo has
+  `warnings:["group_misfit"]`, and the day `checks` show the misfit. Repeat
+  the warning to the user. `left_group` marks a write that took a task out of
+  its group.
+- **Ungroup.** `isGroup: false` on a one-off group makes its former blocking
+  tasks blocking again on free time. The echo lists them in `restoredIds`.
+  `isGroup` and `accepts` belong to the whole series.
 
 ## All-day events
 
