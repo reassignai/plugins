@@ -198,7 +198,9 @@ or `mirrorCalendarIds`.
 - **A new event that partly overlaps a group.** It is not added. The group
   does not extend by itself. Ask the user whether to extend the group for
   that day. With a yes, update the group's `start` or `end` with
-  `write_events`, then add the event.
+  `write_events`, then add the event. For a repeating group, update the
+  occurrence id (`<seriesId>@YYYY-MM-DD`). The group cannot grow over another
+  group or a blocking event, or past 24 hours. Then offer another time.
 - **Time shield.** `accepts` lists the areas and activity types that belong
   in the group. When the user asks to block something in a shielded group
   and its area or activity type does not fit, warn the user. Say what fits
