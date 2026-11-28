@@ -301,3 +301,5 @@ scheduled, and the steps carry over when it is.
    a non-blocking band's intent (e.g. do not put a meal inside a fast).
 4. When the user asks how busy or overbooked they are, count blocking events
    only. A reference or non-blocking event adds no time and is never a clash.
+   A group is the exception: count its tasks, never its span. See
+   references/calendars.md §Groups and time shields.
